@@ -1,4 +1,5 @@
 // server.js
+import bodyParser from "body-parser";
 import dotenv from "dotenv";
 import express, { json } from "express";
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from "fs";
@@ -6,6 +7,7 @@ dotenv.config({ debug: true, path: [".env"], encoding: "UTF-8" });
 
 const app = express();
 app.use(json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 if (!BOT_TOKEN) {
@@ -76,18 +78,12 @@ app.post(`/webhook`, async (req, res) => {
   res.json({ ok: true });
 });
 
-// Вебхук от стороннего сервиса
 app.post("/incoming-webhook", async (req, res) => {
   try {
-    const rawBody = req.body;
-    const payloadText = rawBody.toString("utf8");
+    let payload = req.body;
 
-    let payload;
-    try {
-      payload = JSON.parse(payloadText);
-    } catch (err) {
-      // Если не JSON — можно работать с текстом
-      payload = payloadText;
+    if (!payload || Object.keys(payload).length === 0) {
+      payload = {};
     }
 
     const logEntry = {
@@ -95,7 +91,7 @@ app.post("/incoming-webhook", async (req, res) => {
       headers: req.headers,
       body: payload,
     };
-    appendFileSync("webhook.log", JSON.stringify(logEntry) + "\n");
+    appendFileSync(LOG_FILE, JSON.stringify(logEntry) + "\n");
 
     const short = JSON.stringify(payload, null, 2);
     const message = `<b>Новый вебхук:</b>\n<pre>${escapeHtml(short)}</pre>`;
