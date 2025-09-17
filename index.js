@@ -1,7 +1,7 @@
 // server.js
 import dotenv from "dotenv";
 import express, { json } from "express";
-import { appendFile, existsSync, readFileSync, writeFileSync } from "fs";
+import { appendFileSync, existsSync, readFileSync, writeFileSync } from "fs";
 dotenv.config({ debug: true, path: [".env"], encoding: "UTF-8" });
 
 const app = express();
@@ -78,23 +78,39 @@ app.post(`/webhook`, async (req, res) => {
 
 // Вебхук от стороннего сервиса
 app.post("/incoming-webhook", async (req, res) => {
-  const payload = req.body;
+  try {
+    const rawBody = req.body;
+    const payloadText = rawBody.toString("utf8");
 
-  const logEntry = `[${new Date().toISOString()}] ${JSON.stringify(payload)}\n`;
-  appendFile(LOG_FILE, logEntry, (err) => {
-    if (err) console.error("Ошибка записи в log:", err);
-  });
+    let payload;
+    try {
+      payload = JSON.parse(payloadText);
+    } catch (err) {
+      // Если не JSON — можно работать с текстом
+      payload = payloadText;
+    }
 
-  const short = JSON.stringify(payload, null, 2).slice(0, 1900);
-  const message = `<b>Новый вебхук:</b>\n<pre>${escapeHtml(short)}</pre>`;
+    const logEntry = {
+      receivedAt: new Date().toISOString(),
+      headers: req.headers,
+      body: payload,
+    };
+    appendFileSync("webhook.log", JSON.stringify(logEntry) + "\n");
 
-  let sent = 0;
-  for (const chatId of subscribers) {
-    await sendToTelegram(chatId, message);
-    sent++;
+    const short = JSON.stringify(payload, null, 2);
+    const message = `<b>Новый вебхук:</b>\n<pre>${escapeHtml(short)}</pre>`;
+
+    let sent = 0;
+    for (const chatId of subscribers) {
+      await sendToTelegram(chatId, message);
+      sent++;
+    }
+
+    res.status(200).json({ ok: true, sent });
+  } catch (err) {
+    console.error("Error handling webhook:", err);
+    res.status(500).send("Server error");
   }
-
-  res.json({ ok: true, sent });
 });
 
 // Функция для экранирования HTML
