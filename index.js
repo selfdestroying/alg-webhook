@@ -2,7 +2,7 @@
 import bodyParser from "body-parser";
 import dotenv from "dotenv";
 import express, { json } from "express";
-import { appendFileSync, existsSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, readFileSync, writeFileSync } from "fs";
 dotenv.config({ debug: true, path: [".env"], encoding: "UTF-8" });
 
 const app = express();
@@ -10,8 +10,10 @@ app.use(json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
+const CRM_TOKEN = process.env.CRM_TOKEN;
+
 if (!BOT_TOKEN) {
-  console.error("Не задан BOT_TOKEN");
+  console.error("Не задан BOT_TOKEN или CRM_TOKEN");
   process.exit(1);
 }
 
@@ -54,6 +56,83 @@ async function sendToTelegram(chatId, text, parseMode = "HTML") {
   }
 }
 
+async function fetchLead(subdomain, leadId) {
+  if (!subdomain || !leadId) {
+    throw new Error("Некорректные аргументы: subdomain или leadId пустые");
+  }
+
+  const url = `https://${encodeURIComponent(
+    subdomain
+  )}.amocrm.ru/api/v4/leads/${encodeURIComponent(leadId)}`;
+
+  try {
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${CRM_TOKEN}`,
+      },
+      redirect: "follow",
+    });
+
+    if (!res.ok) {
+      throw new Error(`CRM API вернул ${res.status}: ${res.statusText}`);
+    }
+
+    return await res.json();
+  } catch (err) {
+    console.error("Ошибка при получении лида:", err.message);
+    return null; // чтобы обработать выше
+  }
+}
+
+// Хэндлер вебхука
+app.post("/incoming-webhook", async (req, res) => {
+  try {
+    const payload = req.body || {};
+
+    // Безопасно достаем данные
+    const subdomain = payload?.account?.subdomain;
+    const actions = payload?.leads?.add ?? [];
+
+    const messages = [];
+
+    if (!Array.isArray(actions) || actions.length === 0) {
+      const short = JSON.stringify({ message: "Нет данных" }, null, 2);
+      messages.push(`<b>Новый вебхук:</b>\n<pre>${escapeHtml(short)}</pre>`);
+    } else {
+      for (const action of actions) {
+        const leadId = action?.id;
+        if (!leadId) continue;
+
+        const lead = await fetchLead(subdomain, leadId);
+        if (!lead) continue; // если запрос упал — пропускаем
+
+        const short = JSON.stringify(lead, null, 2);
+        const message = `<b>Новый вебхук:</b>\n<pre>${escapeHtml(short)}</pre>`;
+        messages.push(message);
+      }
+    }
+
+    for (const chatId of subscribers) {
+      for (const message of messages) {
+        try {
+          await sendToTelegram(chatId, message);
+        } catch (err) {
+          console.error(
+            `Ошибка при отправке в Telegram (${chatId}):`,
+            err.message
+          );
+        }
+      }
+    }
+
+    res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error("Ошибка обработки вебхука:", err.message);
+    res.status(500).json({ ok: false, error: "Server error" });
+  }
+});
 // Вебхук от Telegram
 app.post(`/webhook`, async (req, res) => {
   const update = req.body;
@@ -76,37 +155,6 @@ app.post(`/webhook`, async (req, res) => {
   }
 
   res.json({ ok: true });
-});
-
-app.post("/incoming-webhook", async (req, res) => {
-  try {
-    let payload = req.body;
-
-    if (!payload || Object.keys(payload).length === 0) {
-      payload = {};
-    }
-
-    const logEntry = {
-      receivedAt: new Date().toISOString(),
-      headers: req.headers,
-      body: payload,
-    };
-    appendFileSync(LOG_FILE, JSON.stringify(logEntry) + "\n");
-
-    const short = JSON.stringify(payload, null, 2);
-    const message = `<b>Новый вебхук:</b>\n<pre>${escapeHtml(short)}</pre>`;
-
-    let sent = 0;
-    for (const chatId of subscribers) {
-      await sendToTelegram(chatId, message);
-      sent++;
-    }
-
-    res.status(200).json({ ok: true, sent });
-  } catch (err) {
-    console.error("Error handling webhook:", err);
-    res.status(500).send("Server error");
-  }
 });
 
 // Функция для экранирования HTML
