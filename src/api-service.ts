@@ -1,0 +1,70 @@
+import dotenv from "dotenv";
+dotenv.config({ debug: true, path: [".env"], encoding: "UTF-8" });
+export default class APIService {
+  private CRM_TOKEN: string;
+  private subdomain: string;
+
+  constructor(subdomain: string) {
+    this.subdomain = subdomain;
+    const token = process.env.CRM_TOKEN;
+    if (!token) {
+      console.error("Не задан CRM_TOKEN");
+      process.exit(1); // только для Node.js
+    }
+    this.CRM_TOKEN = token;
+  }
+
+  private async request(url: string) {
+    try {
+      const res = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.CRM_TOKEN}`,
+        },
+        redirect: "follow",
+      });
+
+      if (!res.ok) {
+        throw new Error(`CRM API вернул ${res.status}: ${res.statusText}`);
+      }
+
+      return await res.json();
+    } catch (err) {
+      if (err instanceof Error) {
+        console.error("Ошибка при запросе к CRM:", err.message);
+      } else {
+        console.error("Неизвестная ошибка при запросе к CRM:", err);
+      }
+      return null;
+    }
+  }
+
+  async fetchLead(leadId: number) {
+    if (leadId == null) {
+      throw new Error("Некорректный leadId");
+    }
+
+    const url = `https://${encodeURIComponent(
+      this.subdomain
+    )}.amocrm.ru/api/v4/leads/${encodeURIComponent(
+      leadId
+    )}?with=catalog_elements`;
+
+    return this.request(url);
+  }
+
+  async fetchCatalogElement(catalogId: number, elementId: number) {
+    if (catalogId == null || elementId == null) {
+      throw new Error("Некорректные аргументы: catalogId или elementId пустые");
+    }
+
+    const url = `https://${encodeURIComponent(
+      this.subdomain
+    )}.amocrm.ru/api/v4/catalogs/${encodeURIComponent(
+      catalogId
+    )}/elements/${encodeURIComponent(elementId)}`;
+
+    return this.request(url);
+  }
+}
