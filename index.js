@@ -63,7 +63,9 @@ async function fetchLead(subdomain, leadId) {
 
   const url = `https://${encodeURIComponent(
     subdomain
-  )}.amocrm.ru/api/v4/leads/${encodeURIComponent(leadId)}`;
+  )}.amocrm.ru/api/v4/leads/${encodeURIComponent(
+    leadId
+  )}?with=catalog_elements`;
 
   try {
     const res = await fetch(url, {
