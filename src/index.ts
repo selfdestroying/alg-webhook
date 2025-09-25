@@ -97,6 +97,47 @@ app.post("/incoming-webhook", async (req, res) => {
   }
 });
 
+app.post("/sheet-webhook", async (req, res) => {
+  try {
+    const payload = req.body || {};
+    const messages = [];
+    let message = `<b>Данные сделки:</b>\n<pre>${escapeHtml(
+      JSON.stringify(payload, null, 2)
+    )}</pre>\n\n`;
+
+    messages.push(message);
+
+    for (const chatId of subscribers) {
+      for (const message of messages) {
+        try {
+          const res = await sendToTelegram(chatId, message);
+          if (!res.ok) {
+            throw new Error(res.description);
+          }
+        } catch (err) {
+          if (err instanceof Error) {
+            console.error(
+              `Ошибка при отправке в Telegram (${chatId}):`,
+              err.message
+            );
+          } else {
+            console.log("Неизвестная ошибка", err);
+          }
+        }
+      }
+    }
+
+    res.status(200).json({ ok: true });
+  } catch (err) {
+    if (err instanceof Error) {
+      console.error("Ошибка обработки вебхука:", err.message);
+    } else {
+      console.log("Неизвестная ошибка", err);
+    }
+    res.status(500).json({ ok: false, error: "Server error" });
+  }
+});
+
 app.post(`/webhook`, async (req, res) => {
   const update = req.body;
 
