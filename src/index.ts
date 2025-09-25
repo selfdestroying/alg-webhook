@@ -116,6 +116,10 @@ app.post("/sheet-webhook", async (req, res) => {
       message = `<b>Строка добавлена:</b>\n<pre>${escapeHtml(
         JSON.stringify(payload, null, 2)
       )}</pre>\n\n`;
+    } else {
+      message = `<b>Неизвестные данные:</b>\n<pre>${escapeHtml(
+        JSON.stringify(payload, null, 2)
+      )}</pre>\n\n`;
     }
 
     messages.push(message);
