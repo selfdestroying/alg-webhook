@@ -6,8 +6,8 @@ import z from "zod";
 import APIService from "./api-service";
 import { sendToTelegram } from "./bot";
 import { RawLeadDataSchema } from "./lead.dto";
-import { escapeHtml } from "./utils";
 import { apiMiddleware } from "./middleware";
+import { escapeHtml } from "./utils";
 
 const app = express();
 app.use(json());
@@ -30,80 +30,93 @@ function saveSubscribers() {
 }
 
 // Хэндлер вебхука
-app.post("/incoming-webhook", apiMiddleware(RawLeadDataSchema), async (req, res) => {
-  try {
-    const payload = req.body || {};
-    // Безопасно достаем данные
-    const subdomain = payload?.account?.subdomain;
-    const actions = payload?.leads?.add ?? [];
+app.post(
+  "/incoming-webhook",
+  apiMiddleware(RawLeadDataSchema),
+  async (req, res) => {
+    try {
+      const payload = req.body || {};
+      // Безопасно достаем данные
+      const subdomain = payload?.account?.subdomain;
+      const actions = payload?.leads?.add ?? [];
 
-    const messages = [];
+      const messages = [];
 
-    if (!Array.isArray(actions) || actions.length === 0) {
-      const short = JSON.stringify({ message: "Нет данных" }, null, 2);
-      messages.push(`<b>Новый вебхук:</b>\n<pre>${escapeHtml(short)}</pre>`);
-    } else {
-      const api = new APIService(subdomain);
-      for (const action of actions) {
-        const leadId = action?.id;
-        if (!leadId) continue;
+      if (!Array.isArray(actions) || actions.length === 0) {
+        const short = JSON.stringify({ message: "Нет данных" }, null, 2);
+        messages.push(`<b>Новый вебхук:</b>\n<pre>${escapeHtml(short)}</pre>`);
+      } else {
+        const api = new APIService(subdomain);
+        for (const action of actions) {
+          const leadId = action?.id;
+          if (!leadId) continue;
 
-        const rawLead = await api.fetchLead(leadId);
-        if (!rawLead) continue;
-        const parsedLead = RawLeadDataSchema.safeParse(rawLead);
-        if (!parsedLead.success) {
-          const errorMessage = `<b>Ошибка парсинга данных:</b>\n<pre>${escapeHtml(
-            JSON.stringify(z.treeifyError(parsedLead.error), null, 2)
-          )}</pre>`;
-          messages.push(errorMessage);
-          continue;
-        }
-
-        let message = `<b>Данные сделки:</b>\n<pre>${escapeHtml(
-          JSON.stringify(parsedLead.data, null, 2)
-        )}</pre>\n\n`;
-        messages.push(message);
-      }
-    }
-
-    for (const chatId of subscribers) {
-      for (const message of messages) {
-        try {
-          const res = await sendToTelegram(chatId, message);
-          if (!res.ok) {
-            throw new Error(res.description);
+          const rawLead = await api.fetchLead(leadId);
+          if (!rawLead) continue;
+          const parsedLead = RawLeadDataSchema.safeParse(rawLead);
+          if (!parsedLead.success) {
+            const errorMessage = `<b>Ошибка парсинга данных:</b>\n<pre>${escapeHtml(
+              JSON.stringify(z.treeifyError(parsedLead.error), null, 2)
+            )}</pre>`;
+            messages.push(errorMessage);
+            continue;
           }
-        } catch (err) {
-          if (err instanceof Error) {
-            console.error(
-              `Ошибка при отправке в Telegram (${chatId}):`,
-              err.message
-            );
-          } else {
-            console.log("Неизвестная ошибка", err);
-          }
+
+          let message = `<b>Данные сделки:</b>\n<pre>${escapeHtml(
+            JSON.stringify(parsedLead.data, null, 2)
+          )}</pre>\n\n`;
+          messages.push(message);
         }
       }
-    }
 
-    res.status(200).json({ ok: true });
-  } catch (err) {
-    if (err instanceof Error) {
-      console.error("Ошибка обработки вебхука:", err.message);
-    } else {
-      console.log("Неизвестная ошибка", err);
+      for (const chatId of subscribers) {
+        for (const message of messages) {
+          try {
+            const res = await sendToTelegram(chatId, message);
+            if (!res.ok) {
+              throw new Error(res.description);
+            }
+          } catch (err) {
+            if (err instanceof Error) {
+              console.error(
+                `Ошибка при отправке в Telegram (${chatId}):`,
+                err.message
+              );
+            } else {
+              console.log("Неизвестная ошибка", err);
+            }
+          }
+        }
+      }
+
+      res.status(200).json({ ok: true });
+    } catch (err) {
+      if (err instanceof Error) {
+        console.error("Ошибка обработки вебхука:", err.message);
+      } else {
+        console.log("Неизвестная ошибка", err);
+      }
+      res.status(500).json({ ok: false, error: "Server error" });
     }
-    res.status(500).json({ ok: false, error: "Server error" });
   }
-});
+);
 
 app.post("/sheet-webhook", async (req, res) => {
   try {
     const payload = req.body || {};
     const messages = [];
-    let message = `<b>Данные сделки:</b>\n<pre>${escapeHtml(
-      JSON.stringify(payload, null, 2)
-    )}</pre>\n\n`;
+
+    const changeType = payload.changeType;
+    let message;
+    if (changeType == "EDIT") {
+      message = `<b>Строка изменена:</b>\n<pre>${escapeHtml(
+        JSON.stringify(payload, null, 2)
+      )}</pre>\n\n`;
+    } else if (changeType == "INSERT_ROW") {
+      message = `<b>Строка добавлена:</b>\n<pre>${escapeHtml(
+        JSON.stringify(payload, null, 2)
+      )}</pre>\n\n`;
+    }
 
     messages.push(message);
 
