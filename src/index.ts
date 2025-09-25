@@ -5,8 +5,9 @@ import { existsSync, readFileSync, writeFileSync } from "fs";
 import z from "zod";
 import APIService from "./api-service";
 import { sendToTelegram } from "./bot";
-import { RawLeadDataSchema } from "./dto";
+import { RawLeadDataSchema } from "./lead.dto";
 import { escapeHtml } from "./utils";
+import { apiMiddleware } from "./middleware";
 
 const app = express();
 app.use(json());
@@ -29,10 +30,9 @@ function saveSubscribers() {
 }
 
 // Хэндлер вебхука
-app.post("/incoming-webhook", async (req, res) => {
+app.post("/incoming-webhook", apiMiddleware(RawLeadDataSchema), async (req, res) => {
   try {
     const payload = req.body || {};
-
     // Безопасно достаем данные
     const subdomain = payload?.account?.subdomain;
     const actions = payload?.leads?.add ?? [];
