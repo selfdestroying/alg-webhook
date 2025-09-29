@@ -53,7 +53,7 @@ app.post(
           if (!lead) {
             continue;
           }
-          const lastCatalogElement = lead._embedded.catalogElements.at(-1)          
+          const lastCatalogElement = lead._embedded.catalogElements.at(-1)       
         }
       }
 
