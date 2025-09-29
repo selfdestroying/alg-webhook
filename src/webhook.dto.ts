@@ -2,8 +2,8 @@ import z from "zod";
 
 export const LeadActionSchema = z.object({
     id: z.union([z.number(), z.string()]),
-    status_id: z.union([z.number(), z.string()]),
-    pipeline_id: z.union([z.number(), z.string()])
+    status_id: z.union([z.number(), z.string()]).optional(),
+    pipeline_id: z.union([z.number(), z.string()]).optional()
 }).transform((raw) => ({
     id: raw.id,
     statusId: raw.status_id,

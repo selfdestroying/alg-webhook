@@ -8,6 +8,8 @@ import { sendToTelegram } from "./bot";
 import { RawLeadDataSchema } from "./lead.dto";
 import { apiMiddleware } from "./middleware";
 import { escapeHtml } from "./utils";
+import { LeadActionSchema, WebhookSchema } from "./webhook.dto";
+import APIController from "./api-controller";
 
 const app = express();
 app.use(json());
@@ -29,16 +31,14 @@ function saveSubscribers() {
   writeFileSync(SUBSCRIBERS_FILE, JSON.stringify([...subscribers]));
 }
 
-// Хэндлер вебхука
 app.post(
   "/incoming-webhook",
-  apiMiddleware(RawLeadDataSchema),
+  apiMiddleware(WebhookSchema),
   async (req, res) => {
     try {
       const payload = req.body || {};
-      // Безопасно достаем данные
-      const subdomain = payload?.account?.subdomain;
-      const actions = payload?.leads?.add ?? [];
+      const subdomain = payload.account.subdomain;
+      const actions = payload.leads.add ?? [];
 
       const messages = [];
 
@@ -46,26 +46,14 @@ app.post(
         const short = JSON.stringify({ message: "Нет данных" }, null, 2);
         messages.push(`<b>Новый вебхук:</b>\n<pre>${escapeHtml(short)}</pre>`);
       } else {
-        const api = new APIService(subdomain);
+        const controller = new APIController(subdomain);
         for (const action of actions) {
-          const leadId = action?.id;
-          if (!leadId) continue;
-
-          const rawLead = await api.fetchLead(leadId);
-          if (!rawLead) continue;
-          const parsedLead = RawLeadDataSchema.safeParse(rawLead);
-          if (!parsedLead.success) {
-            const errorMessage = `<b>Ошибка парсинга данных:</b>\n<pre>${escapeHtml(
-              JSON.stringify(z.treeifyError(parsedLead.error), null, 2)
-            )}</pre>`;
-            messages.push(errorMessage);
+          const leadId = action.id;
+          const lead = await controller.getLead(leadId);
+          if (!lead) {
             continue;
           }
-
-          let message = `<b>Данные сделки:</b>\n<pre>${escapeHtml(
-            JSON.stringify(parsedLead.data, null, 2)
-          )}</pre>\n\n`;
-          messages.push(message);
+          const lastCatalogElement = lead._embedded.catalogElements.at(-1)          
         }
       }
 

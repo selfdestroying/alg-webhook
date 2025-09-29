@@ -1,9 +1,10 @@
 import z from "zod";
-import { LeadDataDto, RawLeadDataSchema } from "./lead.dto";
 import { NextFunction, Request, Response } from "express";
+import { WebhookSchemaType } from "./webhook.dto";
 
-export const apiMiddleware = (schema: z.ZodType<LeadDataDto>) => {
-    return (req: Request, res: Response, next: NextFunction) => {
+
+export function apiMiddleware(schema: z.ZodType<WebhookSchemaType>) {
+    return (req: Request<{}, {}, WebhookSchemaType>, res: Response, next: NextFunction) => {
         const result = schema.safeParse(req.body)
         if (!result.success) {
             return res.status(400).json({

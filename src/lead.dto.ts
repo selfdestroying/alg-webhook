@@ -31,7 +31,7 @@ const RawCatalogElementMetadataSchema = z
   }));
 
 // --- CatalogElement ---
-const RawCatalogElementSchema = z.object({
+export const RawCatalogElementSchema = z.object({
   id: z.number(),
   metadata: RawCatalogElementMetadataSchema,
 });

@@ -9,7 +9,7 @@ export default class APIService {
     const token = process.env.CRM_TOKEN;
     if (!token) {
       console.error("Не задан CRM_TOKEN");
-      process.exit(1); // только для Node.js
+      process.exit(1);
     }
     this.CRM_TOKEN = token;
   }
@@ -40,7 +40,7 @@ export default class APIService {
     }
   }
 
-  async fetchLead(leadId: number) {
+  async fetchLead(leadId: string | number) {
     if (leadId == null) {
       throw new Error("Некорректный leadId");
     }
@@ -54,7 +54,7 @@ export default class APIService {
     return this.request(url);
   }
 
-  async fetchCatalogElement(catalogId: number, elementId: number) {
+  async fetchCatalogElement(catalogId: string | number, elementId: string | number) {
     if (catalogId == null || elementId == null) {
       throw new Error("Некорректные аргументы: catalogId или elementId пустые");
     }
