@@ -22,7 +22,7 @@ const RawCatalogElementMetadataSchema = z
   .object({
     quantity: z.number(),
     catalog_id: z.number(),
-    price_id: z.number(),
+    price_id: z.union([z.number(), z.null()]),
   })
   .transform((raw) => ({
     quantity: raw.quantity,
@@ -55,7 +55,9 @@ export const RawLeadDataSchema = z
     pipeline_id: z.number(),
     created_at: z.number(),
     updated_at: z.number(),
-    custom_fields_values: z.array(RawCustomFieldSchema),
+    custom_fields_values: z
+      .union([z.array(RawCustomFieldSchema), z.null()])
+      .optional(),
     _embedded: RawEmbeddedDataSchema,
   })
   .transform((raw) => ({

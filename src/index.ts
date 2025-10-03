@@ -2,14 +2,11 @@
 import bodyParser from "body-parser";
 import express, { json } from "express";
 import { existsSync, readFileSync, writeFileSync } from "fs";
-import z from "zod";
-import APIService from "./api-service";
-import { sendToTelegram } from "./bot";
-import { RawLeadDataSchema } from "./lead.dto";
+import webhookController from "./controllers/webhook-controller";
+import { WebhookSchema } from "./dto/webhook.dto";
 import { apiMiddleware } from "./middleware";
+import botService from "./services/bot-service";
 import { escapeHtml } from "./utils";
-import { LeadActionSchema, WebhookSchema } from "./webhook.dto";
-import APIController from "./api-controller";
 
 const app = express();
 app.use(json());
@@ -34,59 +31,7 @@ function saveSubscribers() {
 app.post(
   "/incoming-webhook",
   apiMiddleware(WebhookSchema),
-  async (req, res) => {
-    try {
-      const payload = req.body || {};
-      const subdomain = payload.account.subdomain;
-      const actions = payload.leads.add ?? [];
-
-      const messages = [];
-
-      if (!Array.isArray(actions) || actions.length === 0) {
-        const short = JSON.stringify({ message: "Нет данных" }, null, 2);
-        messages.push(`<b>Новый вебхук:</b>\n<pre>${escapeHtml(short)}</pre>`);
-      } else {
-        const controller = new APIController(subdomain);
-        for (const action of actions) {
-          const leadId = action.id;
-          const lead = await controller.getLead(leadId);
-          if (!lead) {
-            continue;
-          }
-          const lastCatalogElement = lead._embedded.catalogElements.at(-1)       
-        }
-      }
-
-      for (const chatId of subscribers) {
-        for (const message of messages) {
-          try {
-            const res = await sendToTelegram(chatId, message);
-            if (!res.ok) {
-              throw new Error(res.description);
-            }
-          } catch (err) {
-            if (err instanceof Error) {
-              console.error(
-                `Ошибка при отправке в Telegram (${chatId}):`,
-                err.message
-              );
-            } else {
-              console.log("Неизвестная ошибка", err);
-            }
-          }
-        }
-      }
-
-      res.status(200).json({ ok: true });
-    } catch (err) {
-      if (err instanceof Error) {
-        console.error("Ошибка обработки вебхука:", err.message);
-      } else {
-        console.log("Неизвестная ошибка", err);
-      }
-      res.status(500).json({ ok: false, error: "Server error" });
-    }
-  }
+  webhookController.handleWebhook
 );
 
 app.post("/sheet-webhook", async (req, res) => {
@@ -112,22 +57,14 @@ app.post("/sheet-webhook", async (req, res) => {
 
     messages.push(message);
 
-    for (const chatId of subscribers) {
-      for (const message of messages) {
-        try {
-          const res = await sendToTelegram(chatId, message);
-          if (!res.ok) {
-            throw new Error(res.description);
-          }
-        } catch (err) {
-          if (err instanceof Error) {
-            console.error(
-              `Ошибка при отправке в Telegram (${chatId}):`,
-              err.message
-            );
-          } else {
-            console.log("Неизвестная ошибка", err);
-          }
+    for (const message of messages) {
+      try {
+        await botService.sendToTelegram(message);
+      } catch (err) {
+        if (err instanceof Error) {
+          console.error(`Ошибка при отправке в Telegram:`, err.message);
+        } else {
+          console.log("Неизвестная ошибка", err);
         }
       }
     }
@@ -153,13 +90,16 @@ app.post(`/webhook`, async (req, res) => {
     if (text === "/start") {
       subscribers.add(chatId);
       saveSubscribers();
-      await sendToTelegram(chatId, "Вы подписаны на уведомления ✅");
+      await botService.sendToTelegram(chatId, "Вы подписаны на уведомления ✅");
     }
 
     if (text === "/stop") {
       subscribers.delete(chatId);
       saveSubscribers();
-      await sendToTelegram(chatId, "Вы отписались от уведомлений ❌");
+      await botService.sendToTelegram(
+        chatId,
+        "Вы отписались от уведомлений ❌"
+      );
     }
   }
 

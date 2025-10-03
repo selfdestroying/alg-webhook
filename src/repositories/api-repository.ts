@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 dotenv.config({ debug: true, path: [".env"], encoding: "UTF-8" });
-export default class APIService {
+
+export default class APIRepository {
   private CRM_TOKEN: string;
   private subdomain: string;
 
@@ -8,8 +9,7 @@ export default class APIService {
     this.subdomain = subdomain;
     const token = process.env.CRM_TOKEN;
     if (!token) {
-      console.error("Не задан CRM_TOKEN");
-      process.exit(1);
+      throw new Error("Не задан CRM_TOKEN");
     }
     this.CRM_TOKEN = token;
   }
@@ -54,7 +54,10 @@ export default class APIService {
     return this.request(url);
   }
 
-  async fetchCatalogElement(catalogId: string | number, elementId: string | number) {
+  async fetchCatalogElement(
+    catalogId: string | number,
+    elementId: string | number
+  ) {
     if (catalogId == null || elementId == null) {
       throw new Error("Некорректные аргументы: catalogId или elementId пустые");
     }
