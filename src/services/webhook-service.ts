@@ -50,7 +50,12 @@ export default class WebhookService {
     }
     const [firstName, lastName] = splittedName;
     const student = await prisma.student.findFirst({
-      where: { AND: [{ firstName }, { lastName }] },
+      where: {
+        OR: [
+          { AND: [{ firstName: firstName }, { lastName: lastName }] },
+          { AND: [{ firstName: lastName }, { lastName: firstName }] },
+        ],
+      },
     });
 
     if (!student) {
