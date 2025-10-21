@@ -25,6 +25,8 @@ type FieldTypeMap = {
   items: z.infer<typeof ItemValueSchema>[];
   numeric: z.infer<typeof NumericValueSchema>[];
   date_time: z.infer<typeof DateValueSchema>[];
+  text: z.infer<typeof DateValueSchema>[];
+  linked_entity: z.infer<typeof DateValueSchema>[];
 };
 
 // Универсальный хелпер
