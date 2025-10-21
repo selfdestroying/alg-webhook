@@ -32,8 +32,8 @@ export const ItemValueSchema = z.object({
 
 export const PayerValueSchema = z.object({
   name: z.string(),
-  entityType: z.string(),
-  entityId: z.number(),
+  entityType: z.string().optional(),
+  entityId: z.number().optional(),
   phone: z.string().optional(),
   email: z.email().optional(),
 });
@@ -54,6 +54,13 @@ export const NumericValueSchema = z.object({
 
 export const DateValueSchema = z.object({
   value: z.number(),
+});
+
+export const LinkedEntity = z.object({
+  name: z.string(),
+  entityId: z.number().optional(),
+  entityType: z.string().optional(),
+  catalogId: z.union([z.number(), z.string(), z.null()]),
 });
 
 // --- Discriminated custom field schema ---
@@ -99,6 +106,20 @@ export const CustomFieldSchema = z.discriminatedUnion("fieldType", [
     fieldCode: z.string(),
     fieldType: z.literal("date_time"),
     values: z.array(DateValueSchema),
+  }),
+  z.object({
+    fieldId: z.number(),
+    fieldName: z.string(),
+    fieldCode: z.string(),
+    fieldType: z.literal("text"),
+    values: z.array(z.object({ value: z.string() })),
+  }),
+  z.object({
+    fieldId: z.number(),
+    fieldName: z.string(),
+    fieldCode: z.string(),
+    fieldType: z.literal("linked_entity"),
+    values: z.array(z.object({ value: LinkedEntity })),
   }),
 ]);
 
