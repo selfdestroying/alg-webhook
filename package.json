@@ -20,7 +20,7 @@
     "@types/node": "^24.10.1",
     "@types/nodemailer": "^7.0.4",
     "dotenv": "^17.2.3",
-    "prisma": "^7.0.0",
+    "prisma": "^6.19.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   }

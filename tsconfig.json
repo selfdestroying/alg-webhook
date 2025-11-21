@@ -4,7 +4,7 @@
     "module": "commonjs",
     "lib": ["ES2022"],
     "outDir": "./dist",
-    "rootDir": ".",                    // ВАЖНО: теперь весь проект
+    "rootDir": "src",                    // ВАЖНО: теперь весь проект
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -17,7 +17,6 @@
   },
   "include": [
     "src/**/*",
-    "prisma.config.ts",    // если оставляешь его в корне
     ".env"
   ],
   "exclude": [

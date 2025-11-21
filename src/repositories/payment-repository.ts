@@ -1,5 +1,5 @@
 import { Payment, Prisma } from "@prisma/client";
-import prisma from "../prisma";
+import {prisma} from "../prisma";
 
 export class PaymentRepository {
   async create(payload: Prisma.PaymentCreateArgs): Promise<Payment> {

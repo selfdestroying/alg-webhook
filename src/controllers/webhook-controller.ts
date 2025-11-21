@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { OutputDataSchemaType } from "../dto/output-data.dto";
 import { WebhookSchemaType } from "../dto/webhook.dto";
-import prisma from "../prisma";
+import {prisma} from "../prisma";
 import { productItems } from "../products";
 import WebhookService from "../services/webhook-service";
 import { escapeHtml } from "../utils";
