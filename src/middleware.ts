@@ -1,8 +1,8 @@
 import { NextFunction, Request, Response } from "express";
 import z from "zod";
 import { WebhookSchemaType } from "./dto/webhook.dto";
-import botService from "./services/bot-service";
 import { escapeHtml } from "./utils";
+import { errorEmailService } from "./services/email-service";
 
 export function apiMiddleware(schema: z.ZodType<WebhookSchemaType>) {
   return async (
@@ -17,8 +17,16 @@ export function apiMiddleware(schema: z.ZodType<WebhookSchemaType>) {
         body: req.body,
         errors: z.treeifyError(result.error),
       };
-      await botService.sendToTelegram(
-        `Ошибка:\n<pre>${escapeHtml(JSON.stringify(payload, null, 2))}</pre>`
+      await errorEmailService.sendError(
+        {
+          error: new Error(`Ошибка:\n<pre>${escapeHtml(JSON.stringify(payload, null, 2))}</pre>`),
+          context: escapeHtml(JSON.stringify(req.body, null, 2)),
+          request: {
+            ip: req.ip?.toString() ?? '',
+            method: req.method,
+            url: req.url,
+          },
+        }
       );
       return res.status(400).json(payload);
     }

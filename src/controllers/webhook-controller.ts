@@ -3,9 +3,9 @@ import { OutputDataSchemaType } from "../dto/output-data.dto";
 import { WebhookSchemaType } from "../dto/webhook.dto";
 import prisma from "../lib/prisma";
 import { productItems } from "../products";
-import botService from "../services/bot-service";
 import WebhookService from "../services/webhook-service";
 import { escapeHtml } from "../utils";
+import { errorEmailService } from "../services/email-service";
 
 class WebhookController {
   constructor() {}
@@ -75,8 +75,16 @@ class WebhookController {
       return res.status(200).json({ ok: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      await botService.sendToTelegram(
-        `Ошибка обработки вебхука:\n<pre>${escapeHtml(message)}</pre>`
+      await errorEmailService.sendError(
+        {
+          error: new Error(`Ошибка обработки вебхука:\n<pre>${escapeHtml(message)}</pre>`),
+          context: escapeHtml(JSON.stringify(req.body, null, 2)),
+          request: {
+            ip: req.ip?.toString() ?? '',
+            method: req.method,
+            url: req.url
+          }
+        }
       );
 
       return res.status(500).json({ ok: false, error: message });
