@@ -1,10 +1,27 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "CommonJS",
-    "rootDir": "src",
-    "outDir": "dist",
+    "module": "commonjs",
+    "lib": ["ES2022"],
+    "outDir": "./dist",
+    "rootDir": ".",                    // ВАЖНО: теперь весь проект
+    "strict": true,
     "esModuleInterop": true,
-    "strict": true
-  }
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": false,
+    "sourceMap": true
+  },
+  "include": [
+    "src/**/*",
+    "prisma.config.ts",    // если оставляешь его в корне
+    ".env"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }

@@ -1,6 +1,6 @@
 import { LeadDataDto } from "../dto/lead.dto";
 import { OutputDataSchemaType } from "../dto/output-data.dto";
-import prisma from "../lib/prisma";
+import prisma from "../prisma";
 import { PaymentRepository } from "../repositories/payment-repository";
 import { StudentRepository } from "../repositories/student-repository";
 import { getFieldValues } from "../utils";

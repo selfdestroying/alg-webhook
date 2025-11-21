@@ -1,7 +1,6 @@
 // server.js
 import bodyParser from "body-parser";
 import express, { json } from "express";
-import { existsSync, readFileSync, writeFileSync } from "fs";
 import webhookController from "./controllers/webhook-controller";
 import { WebhookSchema } from "./dto/webhook.dto";
 import { apiMiddleware } from "./middleware";

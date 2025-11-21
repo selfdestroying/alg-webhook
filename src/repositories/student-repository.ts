@@ -1,5 +1,5 @@
 import { Prisma, Student } from "@prisma/client";
-import prisma from "../lib/prisma";
+import prisma from "../prisma";
 
 export class StudentRepository {
   async findByName(
