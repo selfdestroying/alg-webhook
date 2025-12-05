@@ -1,0 +1,276 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Attendance {
+  id                                           Int              @id @default(autoincrement())
+  lessonId                                     Int
+  studentId                                    Int
+  status                                       AttendanceStatus
+  comment                                      String
+  studentStatus                                StudentStatus    @default(ACTIVE)
+  Lesson                                       Lesson           @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  Student                                      Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  MakeUp_MakeUp_makeUpAttendaceIdToAttendance  MakeUp?          @relation("MakeUp_makeUpAttendaceIdToAttendance")
+  MakeUp_MakeUp_missedAttendanceIdToAttendance MakeUp?          @relation("MakeUp_missedAttendanceIdToAttendance")
+
+  @@unique([studentId, lessonId])
+}
+
+model Cart {
+  id        Int        @id @default(autoincrement())
+  studentId Int        @unique
+  createdAt DateTime   @default(now())
+  Student   Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  CartItem  CartItem[]
+}
+
+model CartItem {
+  id        Int      @id @default(autoincrement())
+  cartId    Int
+  productId Int
+  quantity  Int
+  createdAt DateTime @default(now())
+  Cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  Product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, productId])
+}
+
+model Category {
+  id      Int       @id @default(autoincrement())
+  name    String    @unique
+  Product Product[]
+}
+
+model Course {
+  id    Int     @id @default(autoincrement())
+  name  String
+  Group Group[]
+}
+
+model Dismissed {
+  id        Int      @id @default(autoincrement())
+  studentId Int
+  groupId   Int
+  comment   String
+  date      DateTime
+  Group     Group    @relation(fields: [groupId], references: [id])
+  Student   Student  @relation(fields: [studentId], references: [id])
+}
+
+model Group {
+  id            Int            @id @default(autoincrement())
+  name          String
+  courseId      Int
+  type          GroupType?
+  startDate     DateTime
+  endDate       DateTime?
+  time          String?
+  createdAt     DateTime       @default(now())
+  backOfficeUrl String?
+  lessonCount   Int?
+  lessonPerWeek Int?
+  locationId    Int?
+  Dismissed     Dismissed[]
+  Course        Course         @relation(fields: [courseId], references: [id])
+  Location      Location?      @relation(fields: [locationId], references: [id])
+  Lesson        Lesson[]
+  StudentGroup  StudentGroup[]
+  TeacherGroup  TeacherGroup[]
+}
+
+model Lesson {
+  id            Int             @id @default(autoincrement())
+  groupId       Int
+  date          DateTime
+  time          String?
+  createdAt     DateTime        @default(now())
+  status        LessonStatus    @default(ACTIVE)
+  Attendance    Attendance[]
+  Group         Group           @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  TeacherLesson TeacherLesson[]
+}
+
+model Location {
+  id    Int     @id @default(autoincrement())
+  name  String
+  Group Group[]
+}
+
+model MakeUp {
+  id                                               Int        @id @default(autoincrement())
+  missedAttendanceId                               Int        @unique
+  makeUpAttendaceId                                Int        @unique
+  Attendance_MakeUp_makeUpAttendaceIdToAttendance  Attendance @relation("MakeUp_makeUpAttendaceIdToAttendance", fields: [makeUpAttendaceId], references: [id], onDelete: Cascade)
+  Attendance_MakeUp_missedAttendanceIdToAttendance Attendance @relation("MakeUp_missedAttendanceIdToAttendance", fields: [missedAttendanceId], references: [id], onDelete: Cascade)
+}
+
+model Order {
+  id        Int         @id @default(autoincrement())
+  productId Int
+  studentId Int
+  status    OrderStatus @default(PENDING)
+  createdAt DateTime    @default(now())
+  Product   Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  Student   Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model PayCheck {
+  id        Int      @id @default(autoincrement())
+  amount    Int
+  comment   String
+  date      DateTime
+  createdAt DateTime @default(now())
+  userId    Int
+  User      User     @relation(fields: [userId], references: [id])
+}
+
+model Payment {
+  id           Int      @id @default(autoincrement())
+  studentId    Int
+  createdAt    DateTime @default(now())
+  lessonCount  Int      @default(0)
+  price        Int      @default(0)
+  bidForLesson Int      @default(0)
+  leadName     String   @default("")
+  productName  String   @default("")
+  Student      Student  @relation(fields: [studentId], references: [id])
+}
+
+model Product {
+  id            Int        @id @default(autoincrement())
+  name          String
+  description   String?
+  price         Float
+  originalPrice Float?
+  image         String     @default("placeholder.svg")
+  categoryId    Int
+  rating        Float      @default(0)
+  reviews       Int        @default(0)
+  popular       Boolean    @default(false)
+  quantity      Int
+  CartItem      CartItem[]
+  Order         Order[]
+  Category      Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+}
+
+model Student {
+  id                 Int                  @id @default(autoincrement())
+  firstName          String
+  lastName           String?
+  login              String
+  password           String
+  age                Int
+  birthDate          DateTime?
+  parentsName        String?
+  parentsPhone       String?
+  crmUrl             String?
+  createdAt          DateTime             @default(now())
+  coins              Int                  @default(0)
+  lessonsBalance     Int                  @default(0)
+  totalLessons       Int                  @default(0)
+  totalPayments      Int                  @default(0)
+  Attendance         Attendance[]
+  Cart               Cart?
+  Dismissed          Dismissed[]
+  Order              Order[]
+  Payment            Payment[]
+  StudentGroup       StudentGroup[]
+  UnprocessedPayment UnprocessedPayment[]
+}
+
+model StudentGroup {
+  studentId Int
+  groupId   Int
+  status    StudentStatus @default(ACTIVE)
+  Group     Group         @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  Student   Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@id([studentId, groupId])
+}
+
+model TeacherGroup {
+  teacherId    Int
+  groupId      Int
+  bidForLesson Int?
+  Group        Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  User         User  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@id([teacherId, groupId])
+}
+
+model TeacherLesson {
+  teacherId Int
+  lessonId  Int
+  Lesson    Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  User      User   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@id([teacherId, lessonId])
+}
+
+model UnprocessedPayment {
+  id        Int      @id @default(autoincrement())
+  rawData   Json
+  reason    String
+  resolved  Boolean
+  createdAt DateTime @default(now())
+  studentId Int?
+  Student   Student? @relation(fields: [studentId], references: [id])
+}
+
+model User {
+  id               Int             @id @default(autoincrement())
+  firstName        String
+  lastName         String?
+  password         String
+  role             Role
+  passwordRequired Boolean
+  createdAt        DateTime        @default(now())
+  bidForIndividual Int             @default(750)
+  bidForLesson     Int             @default(1100)
+  PayCheck         PayCheck[]
+  TeacherGroup     TeacherGroup[]
+  TeacherLesson    TeacherLesson[]
+}
+
+enum AttendanceStatus {
+  UNSPECIFIED
+  PRESENT
+  ABSENT
+}
+
+enum GroupType {
+  GROUP
+  INDIVIDUAL
+  INTENSIVE
+}
+
+enum LessonStatus {
+  ACTIVE
+  CANCELLED
+}
+
+enum OrderStatus {
+  COMPLETED
+  PENDING
+  CANCELLED
+}
+
+enum Role {
+  ADMIN
+  OWNER
+  MANAGER
+  TEACHER
+}
+
+enum StudentStatus {
+  TRIAL
+  ACTIVE
+  DISMISSED
+}
