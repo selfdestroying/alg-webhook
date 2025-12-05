@@ -1,16 +1,11 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
-    "moduleResolution": "node",
     "target": "ES2023",
-    "strict": true,
+    "module": "ESNext",
+    "moduleResolution": "Node",
     "esModuleInterop": true,
-    "outDir": "./dist",
-    "rootDir": "./src"
+    "strict": true,
+    "skipLibCheck": true
   },
-  "ts-node": {
-    "esm": true,
-    "experimentalEsm": true
-  },
-  "exclude": ["prisma.config.ts", "node_modules"]
+  "include": ["src/**/*", "prisma.config.ts"]
 }

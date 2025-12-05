@@ -36,10 +36,14 @@ export default class APIRepository {
     }
 
     this.CRM_TOKEN = token;
-    this.baseUrl = `https://${encodeURIComponent(subdomain)}.amocrm.ru/api/v4`;
+    this.baseUrl = `https://${encodeURIComponent(
+      this.subdomain
+    )}.amocrm.ru/api/v4`;
 
     console.log(
-      `[${getTimestamp()}] [APIRepository] Инициализирован для поддомена: ${subdomain}`
+      `[${getTimestamp()}] [APIRepository] Инициализирован для поддомена: ${
+        this.subdomain
+      }`
     );
   }
 
@@ -77,7 +81,10 @@ export default class APIRepository {
 
       try {
         const startTime = Date.now();
-        const response = await fetch(url, { ...fetchOptions, signal: controller.signal });
+        const response = await fetch(url, {
+          ...fetchOptions,
+          signal: controller.signal,
+        });
         clearTimeout(timer);
         const duration = Date.now() - startTime;
 
@@ -142,9 +149,7 @@ export default class APIRepository {
               `Попытка: ${attempt + 1}/${retries + 1}`
           );
 
-          throw error instanceof Error
-            ? error
-            : new Error(errorMessage);
+          throw error instanceof Error ? error : new Error(errorMessage);
         }
 
         await this.delay(retryDelayMs * (attempt + 1));
