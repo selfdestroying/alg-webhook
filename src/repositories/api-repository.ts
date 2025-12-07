@@ -118,6 +118,15 @@ export default class APIRepository {
           continue;
         }
 
+        if (response.status === 204) {
+          console.log(
+            `[${getTimestamp()}] [APIRepository] Пустой ответ (204 No Content) за ${duration}ms (попытка ${
+              attempt + 1
+            }/${retries + 1})`
+          );
+          return null;
+        }
+
         const data = await response.json();
         console.log(
           `[${getTimestamp()}] [APIRepository] Успешный ответ за ${duration}ms (попытка ${
@@ -211,6 +220,56 @@ export default class APIRepository {
     if (result) {
       console.log(
         `[${getTimestamp()}] [APIRepository] Элемент каталога ${elementId} успешно получен`
+      );
+    }
+
+    return result;
+  }
+
+  async fetchInvoicePaidEvents(
+    createdAtSince?: number
+  ): Promise<unknown | null> {
+    const searchParams = new URLSearchParams();
+    searchParams.append("filter[type][]", "invoice_paid");
+
+    if (Number.isFinite(createdAtSince)) {
+      searchParams.append("filter[created_at]", String(createdAtSince));
+    }
+
+    const endpoint = `/events?${searchParams.toString()}`;
+    const result = await this.request(endpoint);
+
+    if (result) {
+      console.log(
+        `[${getTimestamp()}] [APIRepository] События invoice_paid успешно получены`
+      );
+    }
+
+    return result;
+  }
+
+  async fetchCatalogElementLinks(
+    catalogId: string | number,
+    elementId: string | number,
+    toEntityType: string
+  ): Promise<unknown | null> {
+    if (catalogId == null || elementId == null) {
+      const error = "Некорректные аргументы: catalogId или elementId пустые";
+      console.error(`[${getTimestamp()}] [APIRepository] ${error}`);
+      throw new Error(error);
+    }
+
+    const endpoint = `/catalogs/${encodeURIComponent(
+      catalogId
+    )}/elements/${encodeURIComponent(
+      elementId
+    )}/links?filter[to_entity_type]=${encodeURIComponent(toEntityType)}`;
+
+    const result = await this.request(endpoint);
+
+    if (result) {
+      console.log(
+        `[${getTimestamp()}] [APIRepository] Связи элемента каталога ${elementId} успешно получены`
       );
     }
 

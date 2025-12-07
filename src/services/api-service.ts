@@ -1,6 +1,10 @@
 import z from "zod";
 import APIRepository from "../repositories/api-repository";
 import { CatalogElementDataSchema } from "../schemas/catalog-element-schema";
+import {
+  CatalogElementLinksResponseSchema,
+  EventsResponseSchema,
+} from "../schemas/events-schema";
 import { RawLeadDataSchema } from "../schemas/lead-schema";
 import emailLogger from "./email-logger-service";
 
@@ -153,6 +157,132 @@ export default class APIService {
 
       await emailLogger.logError(
         `[APIService] Catalog Element Fetch Error\n\nSubdomain: ${this.subdomain}\nCatalog ID: ${catalogId}\nElement ID: ${elementId}\nError: ${errorMessage}`
+      );
+
+      throw error;
+    }
+  }
+
+  async getInvoicePaidEvents(createdAtSince?: number) {
+    console.log(
+      `[${this.getTimestamp()}] [APIService] Запрашиваем события invoice_paid${
+        Number.isFinite(createdAtSince)
+          ? ` с created_at > ${createdAtSince}`
+          : ""
+      }`
+    );
+
+    try {
+      const eventsResponse = await this.repository.fetchInvoicePaidEvents(
+        createdAtSince
+      );
+
+      const parsed = EventsResponseSchema.safeParse(eventsResponse);
+
+      if (!parsed.success) {
+        const errorDetails = {
+          subdomain: this.subdomain,
+          rawResponse: eventsResponse,
+          validationErrors: z.treeifyError(parsed.error),
+        };
+
+        const errorMessage = `Валидация событий invoice_paid не прошла\n${JSON.stringify(
+          errorDetails,
+          null,
+          2
+        )}`;
+        console.error(`[${this.getTimestamp()}] [APIService] ${errorMessage}`);
+
+        await emailLogger.logError(
+          `[APIService] Invoice Paid Events Validation Error\n\nSubdomain: ${
+            this.subdomain
+          }\n${JSON.stringify(errorDetails, null, 2)}`
+        );
+
+        throw new Error(errorMessage);
+      }
+
+      console.log(
+        `[${this.getTimestamp()}] [APIService] События invoice_paid успешно получены и провалидированы`
+      );
+      return parsed.data;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      console.error(
+        `[${this.getTimestamp()}] [APIService] Ошибка при получении событий invoice_paid:`,
+        errorMessage
+      );
+
+      await emailLogger.logError(
+        `[APIService] Invoice Paid Events Fetch Error\n\nSubdomain: ${this.subdomain}\nError: ${errorMessage}`
+      );
+
+      throw error;
+    }
+  }
+
+  async getCatalogElementLinks(
+    catalogId: string | number,
+    elementId: string | number,
+    toEntityType: string
+  ) {
+    console.log(
+      `[${this.getTimestamp()}] [APIService] Запрашиваем связи элемента каталога ${elementId} с типом ${toEntityType}`
+    );
+
+    try {
+      const response = await this.repository.fetchCatalogElementLinks(
+        catalogId,
+        elementId,
+        toEntityType
+      );
+      const parsed = CatalogElementLinksResponseSchema.safeParse(response);
+
+      if (!parsed.success) {
+        const errorDetails = {
+          catalogId,
+          elementId,
+          toEntityType,
+          subdomain: this.subdomain,
+          rawResponse: response,
+          validationErrors: z.treeifyError(parsed.error),
+        };
+
+        const errorMessage = `Валидация связей элемента каталога не прошла\n${JSON.stringify(
+          errorDetails,
+          null,
+          2
+        )}`;
+        console.error(`[${this.getTimestamp()}] [APIService] ${errorMessage}`);
+
+        await emailLogger.logError(
+          `[APIService] Catalog Element Links Validation Error\n\nSubdomain: ${
+            this.subdomain
+          }\nCatalog ID: ${catalogId}\nElement ID: ${elementId}\n${JSON.stringify(
+            errorDetails,
+            null,
+            2
+          )}`
+        );
+
+        throw new Error(errorMessage);
+      }
+
+      console.log(
+        `[${this.getTimestamp()}] [APIService] Связи элемента каталога ${elementId} успешно получены и провалидированы`
+      );
+      return parsed.data;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      console.error(
+        `[${this.getTimestamp()}] [APIService] Ошибка при получении связей элемента каталога ${elementId}:`,
+        errorMessage
+      );
+
+      await emailLogger.logError(
+        `[APIService] Catalog Element Links Fetch Error\n\nSubdomain: ${this.subdomain}\nCatalog ID: ${catalogId}\nElement ID: ${elementId}\nError: ${errorMessage}`
       );
 
       throw error;

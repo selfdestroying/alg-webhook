@@ -1,6 +1,7 @@
 import bodyParser from "body-parser";
 import express from "express";
 
+import startController from "./controllers/invoices-poller-controller";
 import webhookController from "./controllers/webhook-controller";
 import { webhookMiddleware } from "./middleware";
 
@@ -16,6 +17,11 @@ app.post(
   webhookMiddleware,
   webhookController.handleWebhook
 );
+
+app.get("/poller/start", startController.start);
+app.get("/poller/stop", startController.stop);
+app.get("/poller/status", startController.status);
+app.get("/poller/run-once", startController.runOnce);
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
