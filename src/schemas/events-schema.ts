@@ -9,6 +9,15 @@ export const EventSchema = z
     entity_id: z.union([z.number(), z.string(), z.null()]).optional(),
     entity_type: z.union([z.string(), z.null()]).optional(),
     created_at: z.union([z.number(), z.string(), z.null()]).optional(),
+    _embedded: z
+      .object({
+        entity: z.object({
+          id: z.union([z.number(), z.string(), z.null()]).optional(),
+          catalog_id: z.union([z.number(), z.string(), z.null()]).optional(),
+        }),
+      })
+      .partial()
+      .optional(),
   })
   .passthrough();
 

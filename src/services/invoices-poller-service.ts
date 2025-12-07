@@ -13,18 +13,12 @@ import WebhookService from "./webhook-service";
 
 const DEFAULT_CRON = "*/10 * * * *"; // Каждые 10 минут
 const DEFAULT_SUBDOMAIN = "algovyborg";
-const DEFAULT_CATALOG_ID = 9405;
 const DEFAULT_LAST_PROCESSED = 1765095410;
 
-/**
- * InvoicesPollerService управляет периодическим опросом и обработкой событий invoice_paid.
- * Запускает cron, умеет останавливать и поддерживает ручной запуск.
- */
 class InvoicesPollerService {
   private readonly apiService: APIService;
   private readonly webhookService: WebhookService;
   private readonly cronExpression: string;
-  private readonly catalogId: number;
   private cronJob?: ScheduledTask;
   private isRunning = false;
   private lastProcessedCreatedAt: number;
@@ -37,7 +31,6 @@ class InvoicesPollerService {
   }) {
     const subdomain = options?.subdomain ?? DEFAULT_SUBDOMAIN;
     this.cronExpression = options?.cronExpression ?? DEFAULT_CRON;
-    this.catalogId = options?.catalogId ?? DEFAULT_CATALOG_ID;
     this.lastProcessedCreatedAt =
       options?.lastProcessedCreatedAt ?? DEFAULT_LAST_PROCESSED;
     this.apiService = new APIService(subdomain);
@@ -134,6 +127,15 @@ class InvoicesPollerService {
   private async processEvent(event: EventSchemaType) {
     try {
       const entityId = event.entity_id;
+      const catalogId = event._embedded?.entity?.catalog_id;
+
+      if (catalogId == null) {
+        await emailLogger.logError(
+          "[InvoicesPoller] Событие без catalog_id, пропускаем"
+        );
+        return;
+      }
+
       if (entityId == null) {
         await emailLogger.logError(
           "[InvoicesPoller] Событие без entity_id, пропускаем"
@@ -142,11 +144,11 @@ class InvoicesPollerService {
       }
 
       const catalogElement = await this.apiService.getCatalogElement(
-        this.catalogId,
+        catalogId,
         entityId
       );
       const products = getFieldValues(catalogElement, "items");
-      const leadId = await this.extractLeadId(entityId);
+      const leadId = await this.extractLeadId(entityId, catalogId);
       if (leadId == null) {
         await emailLogger.logError(
           `[InvoicesPoller] Не удалось получить связанный lead для элемента ${entityId}`
@@ -223,10 +225,13 @@ class InvoicesPollerService {
     }
   }
 
-  private async extractLeadId(elementId: string | number) {
+  private async extractLeadId(
+    elementId: string | number,
+    catalogId: string | number
+  ) {
     const linksResponse: CatalogElementLinksResponseSchemaType =
       await this.apiService.getCatalogElementLinks(
-        this.catalogId,
+        catalogId,
         elementId,
         "leads"
       );
