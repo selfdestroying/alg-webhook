@@ -1,12 +1,14 @@
-import dotenv from "dotenv";
-import emailLogger from "../services/email-logger-service";
+import dotenv from 'dotenv';
+import ApiError from '../error/api-error';
+import { delay, logInvocation } from '../lib/utils';
+import { EventsFilters, EventsResponse } from '../types/event';
+import { Invoice, InvoiceLinks, InvoiceLinksFilters } from '../types/invoice';
+import { Lead } from '../types/lead';
 
-dotenv.config({ debug: true, path: ".env", encoding: "utf-8" });
-
-const getTimestamp = () => new Date().toISOString();
+dotenv.config({ debug: true, path: '.env', encoding: 'utf-8' });
 
 interface RequestOptions {
-  method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
   body?: unknown;
   timeoutMs?: number;
   retries?: number;
@@ -20,259 +22,153 @@ interface CRMAPIError {
   message: string;
 }
 
-export default class APIRepository {
+class APIRepository {
   private readonly CRM_TOKEN: string;
-  private readonly subdomain: string;
+  private readonly CRM_SUBDOMAIN: string;
   private readonly baseUrl: string;
 
-  constructor(subdomain: string) {
-    this.subdomain = subdomain;
-
+  constructor() {
     const token = process.env.CRM_TOKEN;
+    const subdomain = process.env.CRM_SUBDOMAIN;
+    if (!subdomain) {
+      throw new ApiError(500, 'CRM_SUBDOMAIN не задан в переменных окружения');
+    }
     if (!token) {
-      const error = "CRM_TOKEN не задан в переменных окружения";
-      console.error(`[${getTimestamp()}] [APIRepository] ${error}`);
-      throw new Error(error);
+      throw new ApiError(500, 'CRM_TOKEN не задан в переменных окружения');
     }
 
+    this.CRM_SUBDOMAIN = subdomain;
     this.CRM_TOKEN = token;
-    this.baseUrl = `https://${encodeURIComponent(
-      this.subdomain
-    )}.amocrm.ru/api/v4`;
-
-    console.log(
-      `[${getTimestamp()}] [APIRepository] Инициализирован для поддомена: ${
-        this.subdomain
-      }`
-    );
+    this.baseUrl = `https://${encodeURIComponent(this.CRM_SUBDOMAIN)}.amocrm.ru/api/v4`;
   }
 
-  private async request<T = unknown>(
-    endpoint: string,
-    options: RequestOptions = {}
-  ): Promise<T | null> {
-    const {
-      method = "GET",
-      body,
-      timeoutMs = 15000,
-      retries = 2,
-      retryDelayMs = 500,
-    } = options;
+  @logInvocation
+  private async request<T = unknown>(endpoint: string, options: RequestOptions = {}) {
+    const { method = 'GET', body } = options;
     const url = `${this.baseUrl}${endpoint}`;
-
-    console.log(`[${getTimestamp()}] [APIRepository] ${method} запрос: ${url}`);
 
     const fetchOptions: RequestInit = {
       method,
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
         Authorization: `Bearer ${this.CRM_TOKEN}`,
       },
-      redirect: "follow",
+      redirect: 'follow',
     };
 
-    if (body && method !== "GET") {
+    if (body && method !== 'GET') {
       fetchOptions.body = JSON.stringify(body);
     }
 
-    for (let attempt = 0; attempt <= retries; attempt++) {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const startTime = Date.now();
+    const response = await fetch(url, {
+      ...fetchOptions,
+    });
+    const duration = Date.now() - startTime;
 
-      try {
-        const startTime = Date.now();
-        const response = await fetch(url, {
-          ...fetchOptions,
-          signal: controller.signal,
-        });
-        clearTimeout(timer);
-        const duration = Date.now() - startTime;
+    await delay(500);
 
-        if (!response.ok) {
-          const errorDetails: CRMAPIError = {
-            status: response.status,
-            statusText: response.statusText,
-            url,
-            message: `CRM API вернул ошибку ${response.status}: ${response.statusText}`,
-          };
+    if (!response.ok) {
+      const errorDetails: CRMAPIError = {
+        status: response.status,
+        statusText: response.statusText,
+        url,
+        message:
+          'Ошибка запроса к CRM API\n' +
+          `Метод: ${method}\n` +
+          `URL: ${url}\n` +
+          `Статус: ${response.status} ${response.statusText}\n` +
+          `Время выполнения: ${duration}ms\n`,
+      };
 
-          console.error(
-            `[${getTimestamp()}] [APIRepository] ${
-              errorDetails.message
-            } (попытка ${attempt + 1}/${retries + 1}, ${duration}ms)`
-          );
-
-          if (attempt === retries) {
-            await emailLogger.logError(
-              `Ошибка запроса к CRM API\n` +
-                `Метод: ${method}\n` +
-                `URL: ${url}\n` +
-                `Статус: ${response.status} ${response.statusText}\n` +
-                `Время выполнения: ${duration}ms\n` +
-                `Попытка: ${attempt + 1}/${retries + 1}`
-            );
-            throw new Error(errorDetails.message);
-          }
-
-          await this.delay(retryDelayMs * (attempt + 1));
-          continue;
-        }
-
-        if (response.status === 204) {
-          console.log(
-            `[${getTimestamp()}] [APIRepository] Пустой ответ (204 No Content) за ${duration}ms (попытка ${
-              attempt + 1
-            }/${retries + 1})`
-          );
-          return null;
-        }
-
-        const data = await response.json();
-        console.log(
-          `[${getTimestamp()}] [APIRepository] Успешный ответ за ${duration}ms (попытка ${
-            attempt + 1
-          })`
-        );
-
-        return data as T;
-      } catch (error) {
-        clearTimeout(timer);
-        const errorMessage =
-          error instanceof Error ? error.message : "Неизвестная ошибка";
-        const isTimeout = error instanceof Error && error.name === "AbortError";
-
-        console.error(
-          `[${getTimestamp()}] [APIRepository] Исключение при запросе к CRM (попытка ${
-            attempt + 1
-          }/${retries + 1}):`,
-          errorMessage
-        );
-
-        if (attempt === retries) {
-          await emailLogger.logError(
-            `Критическая ошибка при запросе к CRM API\n` +
-              `Метод: ${method}\n` +
-              `URL: ${url}\n` +
-              `Ошибка: ${errorMessage}\n` +
-              `Таймаут: ${isTimeout}\n` +
-              `Попытка: ${attempt + 1}/${retries + 1}`
-          );
-
-          throw error instanceof Error ? error : new Error(errorMessage);
-        }
-
-        await this.delay(retryDelayMs * (attempt + 1));
-      }
+      throw new ApiError(response.status === 204 ? 404 : response.status, errorDetails.message);
     }
 
-    return null;
+    if (response.status === 204) {
+      return null;
+    }
+
+    const data = await response.json();
+
+    return data as T;
   }
 
-  private async delay(ms: number) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
-
-  async fetchLead(leadId: string | number): Promise<unknown | null> {
-    if (leadId == null) {
-      const error = "Некорректный leadId (пустое значение)";
-      console.error(`[${getTimestamp()}] [APIRepository] ${error}`);
-      throw new Error(error);
+  @logInvocation
+  async fetchLead(id: string | number) {
+    if (id == null) {
+      throw new ApiError(404, 'Некорректный id (пустое значение)');
     }
 
-    console.log(
-      `[${getTimestamp()}] [APIRepository] Запрос лида с ID: ${leadId}`
-    );
-
-    const endpoint = `/leads/${encodeURIComponent(
-      leadId
-    )}?with=catalog_elements`;
-    const result = await this.request(endpoint);
-
-    if (result) {
-      console.log(
-        `[${getTimestamp()}] [APIRepository] Лид ${leadId} успешно получен`
-      );
-    }
+    const endpoint = `/leads/${encodeURIComponent(id)}?with=catalog_elements`;
+    const result = await this.request<Lead>(endpoint);
 
     return result;
   }
 
-  async fetchCatalogElement(
-    catalogId: string | number,
-    elementId: string | number
-  ): Promise<unknown | null> {
-    if (catalogId == null || elementId == null) {
-      const error = "Некорректные аргументы: catalogId или elementId пустые";
-      console.error(`[${getTimestamp()}] [APIRepository] ${error}`);
-      throw new Error(error);
-    }
-
-    console.log(
-      `[${getTimestamp()}] [APIRepository] Запрос элемента каталога: catalogId=${catalogId}, elementId=${elementId}`
-    );
-
-    const endpoint = `/catalogs/${encodeURIComponent(
-      catalogId
-    )}/elements/${encodeURIComponent(elementId)}`;
-
-    const result = await this.request(endpoint);
-
-    if (result) {
-      console.log(
-        `[${getTimestamp()}] [APIRepository] Элемент каталога ${elementId} успешно получен`
-      );
-    }
-
-    return result;
-  }
-
-  async fetchInvoicePaidEvents(
-    createdAtSince?: number
-  ): Promise<unknown | null> {
+  @logInvocation
+  async fetchEvents(filters: EventsFilters = {}) {
     const searchParams = new URLSearchParams();
-    searchParams.append("filter[type][]", "invoice_paid");
 
-    if (Number.isFinite(createdAtSince)) {
-      searchParams.append("filter[created_at]", String(createdAtSince));
-    }
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        searchParams.append(`filter[${key}]`, String(value));
+      }
+    });
 
     const endpoint = `/events?${searchParams.toString()}`;
-    const result = await this.request(endpoint);
+    const result = await this.request<EventsResponse>(endpoint);
 
-    if (result) {
-      console.log(
-        `[${getTimestamp()}] [APIRepository] События invoice_paid успешно получены`
-      );
+    if (!result) {
+      return {
+        _page: -1,
+        _links: {
+          self: { href: '' },
+        },
+        _embedded: {
+          events: [],
+        },
+      };
     }
+    return result;
+  }
+
+  @logInvocation
+  async fetchInvoice(id: string | number) {
+    const catalogId = 9405;
+    if (id == null) {
+      throw new ApiError(404, 'Некорректный id (пустое значение)');
+    }
+
+    const endpoint = `/catalogs/${encodeURIComponent(
+      catalogId,
+    )}/elements/${encodeURIComponent(id)}`;
+    const result = await this.request<Invoice>(endpoint);
 
     return result;
   }
 
-  async fetchCatalogElementLinks(
-    catalogId: string | number,
-    elementId: string | number,
-    toEntityType: string
-  ): Promise<unknown | null> {
-    if (catalogId == null || elementId == null) {
-      const error = "Некорректные аргументы: catalogId или elementId пустые";
-      console.error(`[${getTimestamp()}] [APIRepository] ${error}`);
-      throw new Error(error);
+  @logInvocation
+  async fetchInvoiceLinks(id: string | number, filters: InvoiceLinksFilters = {}) {
+    const catalogId = 9405;
+    if (id == null) {
+      throw new ApiError(404, 'Некорректный id (пустое значение)');
     }
+
+    const searchParams = new URLSearchParams();
+
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        searchParams.append(`filter[${key}]`, String(value));
+      }
+    });
 
     const endpoint = `/catalogs/${encodeURIComponent(
-      catalogId
-    )}/elements/${encodeURIComponent(
-      elementId
-    )}/links?filter[to_entity_type]=${encodeURIComponent(toEntityType)}`;
-
-    const result = await this.request(endpoint);
-
-    if (result) {
-      console.log(
-        `[${getTimestamp()}] [APIRepository] Связи элемента каталога ${elementId} успешно получены`
-      );
-    }
+      catalogId,
+    )}/elements/${encodeURIComponent(id)}/links?${searchParams.toString()}`;
+    const result = await this.request<InvoiceLinks>(endpoint);
 
     return result;
   }
 }
+
+export default new APIRepository();

@@ -1,20 +1,14 @@
-import { Prisma, Student } from "../generated/prisma/client";
-import { prisma } from "../lib/prisma";
+import { Prisma, Student } from '../generated/prisma/client';
+import { prisma } from '../lib/prisma';
 
-export class StudentRepository {
-  async findByName(
-    firstName: string,
-    lastName: string
-  ): Promise<Student | null> {
+class StudentRepository {
+  async findByName(firstName: string, lastName: string): Promise<Student | null> {
     return prisma.student.findFirst({
       where: { AND: [{ firstName }, { lastName }] },
     });
   }
 
-  async findByNameVariants(
-    firstName: string,
-    lastName: string
-  ): Promise<Student | null> {
+  async findByNameVariants(firstName: string, lastName: string): Promise<Student | null> {
     return prisma.student.findFirst({
       where: {
         OR: [
@@ -56,7 +50,7 @@ export class StudentRepository {
   }
 
   async findByNameCandidates(
-    candidates: Array<{ firstName: string; lastName: string }>
+    candidates: Array<{ firstName: string; lastName: string }>,
   ): Promise<Student | null> {
     const orConditions = candidates
       .filter((c) => c.firstName && c.lastName)
@@ -103,3 +97,5 @@ export class StudentRepository {
     return prisma.student.delete({ where: { id } });
   }
 }
+
+export default new StudentRepository();

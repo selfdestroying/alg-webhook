@@ -1,7 +1,7 @@
-import { Payment, Prisma } from "../generated/prisma/client";
-import { prisma } from "../lib/prisma";
+import { Payment, Prisma } from '../generated/prisma/client';
+import { prisma } from '../lib/prisma';
 
-export class PaymentRepository {
+class PaymentRepository {
   async create(payload: Prisma.PaymentCreateArgs): Promise<Payment> {
     return prisma.payment.create(payload);
   }
@@ -14,3 +14,5 @@ export class PaymentRepository {
     return prisma.payment.findMany({ where: { studentId } });
   }
 }
+
+export default new PaymentRepository();
