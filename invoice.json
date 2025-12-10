@@ -1,0 +1,142 @@
+{
+  "id": 1770865,
+  "name": "",
+  "created_by": 0,
+  "updated_by": 0,
+  "created_at": 1764781862,
+  "updated_at": 1765276060,
+  "is_deleted": null,
+  "custom_fields_values": [
+    {
+      "field_id": 891555,
+      "field_name": "Статус",
+      "field_code": "BILL_STATUS",
+      "field_type": "select",
+      "values": [
+        {
+          "value": "Оплачен",
+          "enum_id": 552175,
+          "enum_code": "paid"
+        }
+      ]
+    },
+    {
+      "field_id": 891561,
+      "field_name": "Тип НДС",
+      "field_code": "BILL_VAT_TYPE",
+      "field_type": "select",
+      "values": [
+        {
+          "value": "Не облагается НДС",
+          "enum_id": 552177,
+          "enum_code": "vat_exempt"
+        }
+      ]
+    },
+    {
+      "field_id": 891559,
+      "field_name": "Плательщик",
+      "field_code": "PAYER",
+      "field_type": "payer",
+      "values": [
+        {
+          "value": {
+            "name": "Вероника",
+            "entity_type": "contacts",
+            "entity_id": 22730471,
+            "phone": "79313665779",
+            "email": "verunya.smirnova.77@internet.ru"
+          }
+        }
+      ]
+    },
+    {
+      "field_id": 891557,
+      "field_name": "Поставщик",
+      "field_code": "SUPPLIER",
+      "field_type": "supplier",
+      "values": [
+        {
+          "value": {
+            "entity_id": 1700853
+          }
+        }
+      ]
+    },
+    {
+      "field_id": 891565,
+      "field_name": "Позиции счета",
+      "field_code": "ITEMS",
+      "field_type": "items",
+      "values": [
+        {
+          "value": {
+            "sku": "",
+            "product_id": 1760489,
+            "description": "4 занятия",
+            "unit_price": 5490,
+            "unit_type": "",
+            "quantity": 1,
+            "discount": {
+              "type": "percentage",
+              "value": 0
+            },
+            "vat_rate_id": 0,
+            "vat_rate_value": 20,
+            "bonus_points_per_purchase": 0,
+            "external_uid": "",
+            "metadata": [],
+            "is_discount_recalculated": false,
+            "is_total_sum_recalculated": false,
+            "total_sum": 5490
+          }
+        }
+      ]
+    },
+    {
+      "field_id": 891569,
+      "field_name": "Стоимость",
+      "field_code": "BILL_PRICE",
+      "field_type": "numeric",
+      "values": [
+        {
+          "value": "5490"
+        }
+      ]
+    },
+    {
+      "field_id": 903385,
+      "field_name": "Зашифрованная ссылка на оплату",
+      "field_code": "INVOICE_HASH_LINK",
+      "field_type": "text",
+      "values": [
+        {
+          "value": "oCuvUlWQ"
+        }
+      ]
+    },
+    {
+      "field_id": 891563,
+      "field_name": "Дата оплаты",
+      "field_code": "BILL_PAYMENT_DATE",
+      "field_type": "date_time",
+      "values": [
+        {
+          "value": 1765276060
+        }
+      ]
+    }
+  ],
+  "catalog_id": 9405,
+  "account_id": 29715646,
+  "_links": {
+    "self": {
+      "href": "https://algovyborg.amocrm.ru/api/v4/catalogs/9405/elements/1770865?page=1&limit=250"
+    }
+  },
+  "_embedded": {
+    "warning": {
+      "message": null
+    }
+  }
+}
