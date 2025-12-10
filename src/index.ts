@@ -1,9 +1,8 @@
-import bodyParser from "body-parser";
-import express from "express";
+import bodyParser from 'body-parser';
+import express from 'express';
 
-import startController from "./controllers/invoices-poller-controller";
-import webhookController from "./controllers/webhook-controller";
-import { webhookMiddleware } from "./middleware";
+import { errorHandlingMiddleware } from './middleware/error-handling-middleware';
+import router from './routes';
 
 const PORT = process.env.PORT || 3000;
 
@@ -12,16 +11,9 @@ const app = express();
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-app.post(
-  "/incoming-webhook",
-  webhookMiddleware,
-  webhookController.handleWebhook
-);
+app.use('/', router);
 
-app.get("/poller/start", startController.start);
-app.get("/poller/stop", startController.stop);
-app.get("/poller/status", startController.status);
-app.get("/poller/run-once", startController.runOnce);
+app.use(errorHandlingMiddleware);
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
