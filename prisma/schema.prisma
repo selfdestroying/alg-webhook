@@ -239,6 +239,14 @@ model User {
   TeacherLesson    TeacherLesson[]
 }
 
+model PaymentProduct {
+  id          Int    @id @default(autoincrement())
+  productId   Int?
+  name        String
+  price       Int
+  lessonCount Int
+}
+
 enum AttendanceStatus {
   UNSPECIFIED
   PRESENT

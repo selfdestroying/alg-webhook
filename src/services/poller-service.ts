@@ -3,8 +3,8 @@ import cron, { ScheduledTask } from 'node-cron';
 import ApiError from '../error/api-error';
 import { Prisma } from '../generated/prisma/browser';
 import PollerStateStorage from '../lib/poller-state';
+import { prisma } from '../lib/prisma';
 import { normalizeNameParts } from '../lib/utils';
-import { productItems } from '../products';
 import PaymentRepository from '../repositories/payment-repository';
 import StudentRepository from '../repositories/student-repository';
 import unprocessedPaymentRepository from '../repositories/unprocessed-payment-repository';
@@ -107,9 +107,14 @@ class PollerService {
       return;
     }
 
-    const productItem = productItems.find(
-      (item) => item.productId === payment.products[0].value.product_id,
-    );
+    const productItem = await prisma.paymentProduct.findFirst({
+      where: {
+        OR: [
+          { productId: payment.products[0].value.product_id },
+          { name: payment.products[0].value.description },
+        ],
+      },
+    });
     if (!productItem) {
       await unprocessedPaymentRepository.create({
         data: {
