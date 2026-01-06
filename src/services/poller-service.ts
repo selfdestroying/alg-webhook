@@ -140,6 +140,11 @@ class PollerService {
         productName: payment.products[0].value.description,
       },
     });
+    await StudentRepository.update(student.id, {
+      lessonsBalance: { increment: lessonCount },
+      totalLessons: { increment: lessonCount },
+      totalPayments: { increment: price },
+    });
   }
 }
 
