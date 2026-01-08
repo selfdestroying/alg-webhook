@@ -6,18 +6,15 @@ type PollerState = {
   cronExpression: string;
 };
 
-const DEFAULT_STATE: PollerState = {
-  lastProcessedCreatedAt: 0,
-  cronExpression: '0 * * * *', // по умолчанию — каждый час
-};
-
 class PollerStateStorage {
   private readonly filePath: string;
-  private state: PollerState;
+  private state: PollerState = {
+    lastProcessedCreatedAt: -1,
+    cronExpression: '',
+  };
 
   constructor(filePath: string) {
     this.filePath = filePath;
-    this.state = { ...DEFAULT_STATE };
   }
 
   public async initialize(): Promise<void> {
@@ -26,28 +23,22 @@ class PollerStateStorage {
       const parsed = JSON.parse(data) as Partial<PollerState>;
 
       // Валидируем и применяем значения, если они корректны
+      if (!parsed.cronExpression || typeof parsed.cronExpression !== 'string') {
+        throw new Error('Некорректное значение cronExpression в poller-state.json');
+      }
+      if (!parsed.lastProcessedCreatedAt || typeof parsed.lastProcessedCreatedAt !== 'number') {
+        throw new Error('Некорректное значение lastProcessedCreatedAt в poller-state.json');
+      }
       this.state = {
-        lastProcessedCreatedAt:
-          typeof parsed.lastProcessedCreatedAt === 'number'
-            ? parsed.lastProcessedCreatedAt
-            : DEFAULT_STATE.lastProcessedCreatedAt,
-        cronExpression:
-          typeof parsed.cronExpression === 'string' && parsed.cronExpression.trim() !== ''
-            ? parsed.cronExpression.trim()
-            : DEFAULT_STATE.cronExpression,
+        cronExpression: parsed.cronExpression,
+        lastProcessedCreatedAt: parsed.lastProcessedCreatedAt,
       };
     } catch (error) {
-      if (error instanceof Error && 'code' in error) {
-        if (error.code === 'ENOENT') {
-          console.log('poller-state.json не найден, создаётся новый файл с дефолтными значениями');
-          await this.save();
+      if (error instanceof Error) {
+        if ('code' in error && error.code === 'ENOENT') {
+          throw new Error('poller-state.json не найден');
         } else {
-          console.warn(
-            'Ошибка при чтении poller-state.json, используются дефолтные значения:',
-            error.message,
-          );
-          this.state = { ...DEFAULT_STATE };
-          await this.save();
+          throw new Error(`Ошибка при чтении poller-state.json: ${error.message}`);
         }
       }
     }
@@ -78,7 +69,7 @@ class PollerStateStorage {
   }
 
   public async updateLastProcessed(timestamp: number): Promise<void> {
-    if (typeof timestamp !== 'number' || isNaN(timestamp)) {
+    if (typeof timestamp !== 'number' || isNaN(timestamp) || timestamp < 0) {
       throw new Error('timestamp должен быть валидным числом');
     }
 

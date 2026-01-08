@@ -14,5 +14,5 @@ export async function errorHandlingMiddleware(
     return res.status(err.status).json({ ok: false, message: err.message });
   }
 
-  return res.status(500).json({ ok: false, message: 'Internal Server Error' });
+  return res.status(500).json({ ok: false, message: `Internal Server Error: ${err.message}` });
 }
