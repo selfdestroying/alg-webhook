@@ -14,6 +14,7 @@ model Attendance {
   status                                       AttendanceStatus
   comment                                      String
   studentStatus                                StudentStatus    @default(ACTIVE)
+  isWarned                                     Boolean?
   Lesson                                       Lesson           @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   Student                                      Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
   MakeUp_MakeUp_makeUpAttendaceIdToAttendance  MakeUp?          @relation("MakeUp_makeUpAttendaceIdToAttendance")
@@ -77,6 +78,8 @@ model Group {
   lessonCount   Int?
   lessonPerWeek Int?
   locationId    Int?
+  dayOfWeek     Int?
+  maxStudents   Int            @default(12)
   Dismissed     Dismissed[]
   Course        Course         @relation(fields: [courseId], references: [id])
   Location      Location?      @relation(fields: [locationId], references: [id])
@@ -161,28 +164,29 @@ model Product {
 }
 
 model Student {
-  id                 Int                  @id @default(autoincrement())
-  firstName          String
-  lastName           String?
-  login              String
-  password           String
-  age                Int
-  birthDate          DateTime?
-  parentsName        String?
-  parentsPhone       String?
-  crmUrl             String?
-  createdAt          DateTime             @default(now())
-  coins              Int                  @default(0)
-  lessonsBalance     Int                  @default(0)
-  totalLessons       Int                  @default(0)
-  totalPayments      Int                  @default(0)
-  Attendance         Attendance[]
-  Cart               Cart?
-  Dismissed          Dismissed[]
-  Order              Order[]
-  Payment            Payment[]
-  StudentGroup       StudentGroup[]
-  UnprocessedPayment UnprocessedPayment[]
+  id                           Int                            @id @default(autoincrement())
+  firstName                    String
+  lastName                     String?
+  login                        String
+  password                     String
+  age                          Int
+  birthDate                    DateTime?
+  parentsName                  String?
+  parentsPhone                 String?
+  crmUrl                       String?
+  createdAt                    DateTime                       @default(now())
+  coins                        Int                            @default(0)
+  lessonsBalance               Int                            @default(0)
+  totalLessons                 Int                            @default(0)
+  totalPayments                Int                            @default(0)
+  Attendance                   Attendance[]
+  Cart                         Cart?
+  Dismissed                    Dismissed[]
+  Order                        Order[]
+  Payment                      Payment[]
+  StudentGroup                 StudentGroup[]
+  StudentLessonsBalanceHistory StudentLessonsBalanceHistory[]
+  UnprocessedPayment           UnprocessedPayment[]
 }
 
 model StudentGroup {
@@ -196,11 +200,11 @@ model StudentGroup {
 }
 
 model TeacherGroup {
-  teacherId    Int
-  groupId      Int
-  bidForLesson Int?
-  Group        Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  User         User  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  teacherId Int
+  groupId   Int
+  bid       Int   @default(0)
+  Group     Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  User      User  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
 
   @@id([teacherId, groupId])
 }
@@ -208,6 +212,7 @@ model TeacherGroup {
 model TeacherLesson {
   teacherId Int
   lessonId  Int
+  bid       Int    @default(0)
   Lesson    Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   User      User   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
 
@@ -225,18 +230,20 @@ model UnprocessedPayment {
 }
 
 model User {
-  id               Int             @id @default(autoincrement())
-  firstName        String
-  lastName         String?
-  password         String
-  role             Role
-  passwordRequired Boolean
-  createdAt        DateTime        @default(now())
-  bidForIndividual Int             @default(750)
-  bidForLesson     Int             @default(1100)
-  PayCheck         PayCheck[]
-  TeacherGroup     TeacherGroup[]
-  TeacherLesson    TeacherLesson[]
+  id                           Int                            @id @default(autoincrement())
+  firstName                    String
+  lastName                     String?
+  password                     String
+  createdAt                    DateTime                       @default(now())
+  bidForIndividual             Int                            @default(750)
+  bidForLesson                 Int                            @default(1100)
+  status                       UserStatus                     @default(ACTIVE)
+  roleId                       Int                            @default(1)
+  PayCheck                     PayCheck[]
+  StudentLessonsBalanceHistory StudentLessonsBalanceHistory[]
+  TeacherGroup                 TeacherGroup[]
+  TeacherLesson                TeacherLesson[]
+  Role                         Role                           @relation(fields: [roleId], references: [id])
 }
 
 model PaymentProduct {
@@ -245,6 +252,34 @@ model PaymentProduct {
   name        String
   price       Int
   lessonCount Int
+}
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        String
+  code        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now())
+  User        User[]
+}
+
+model StudentLessonsBalanceHistory {
+  id            Int                               @id @default(autoincrement())
+  studentId     Int
+  actorUserId   Int?
+  reason        StudentLessonsBalanceChangeReason
+  delta         Int
+  balanceBefore Int
+  balanceAfter  Int
+  comment       String?
+  meta          Json?
+  createdAt     DateTime                          @default(now())
+  User          User?                             @relation(fields: [actorUserId], references: [id])
+  Student       Student                           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([actorUserId, createdAt])
+  @@index([studentId, createdAt])
 }
 
 enum AttendanceStatus {
@@ -270,15 +305,24 @@ enum OrderStatus {
   CANCELLED
 }
 
-enum Role {
-  ADMIN
-  OWNER
-  MANAGER
-  TEACHER
-}
-
 enum StudentStatus {
   TRIAL
   ACTIVE
   DISMISSED
+}
+
+enum StudentLessonsBalanceChangeReason {
+  PAYMENT_CREATED
+  PAYMENT_CANCELLED
+  ATTENDANCE_PRESENT_CHARGED
+  ATTENDANCE_ABSENT_CHARGED
+  MAKEUP_ATTENDED_CHARGED
+  ATTENDANCE_REVERTED
+  MAKEUP_GRANTED
+  MANUAL_SET
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
 }

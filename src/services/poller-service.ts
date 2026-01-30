@@ -1,7 +1,7 @@
 import cron, { ScheduledTask } from 'node-cron';
 
 import ApiError from '../error/api-error';
-import { Prisma } from '../generated/prisma/browser';
+import { Prisma, StudentLessonsBalanceChangeReason } from '../generated/prisma/browser';
 import PollerStateStorage from '../lib/poller-state';
 import { prisma } from '../lib/prisma';
 import { normalizeNameParts } from '../lib/utils';
@@ -140,10 +140,24 @@ class PollerService {
         productName: payment.products[0].value.description,
       },
     });
-    await StudentRepository.update(student.id, {
+    const updated = await StudentRepository.update(student.id, {
       lessonsBalance: { increment: lessonCount },
       totalLessons: { increment: lessonCount },
       totalPayments: { increment: price },
+    });
+    const balanceBefore = student.lessonsBalance;
+    const balanceAfter = updated.lessonsBalance;
+    const delta = balanceAfter - balanceBefore;
+
+    await prisma.studentLessonsBalanceHistory.create({
+      data: {
+        studentId: student.id,
+        reason: StudentLessonsBalanceChangeReason.PAYMENT_CREATED,
+        delta,
+        balanceBefore,
+        balanceAfter,
+        meta: payment as unknown as Prisma.InputJsonValue,
+      },
     });
   }
 }
