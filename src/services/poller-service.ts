@@ -74,6 +74,7 @@ class PollerService {
           rawData: payment as unknown as Prisma.InputJsonValue,
           reason: 'Недостаточно частей в имени',
           resolved: false,
+          organizationId: 1,
         },
       });
       return;
@@ -90,6 +91,7 @@ class PollerService {
           rawData: payment as unknown as Prisma.InputJsonValue,
           reason: 'Студент не найден по имени',
           resolved: false,
+          organizationId: 1,
         },
       });
       return;
@@ -102,6 +104,7 @@ class PollerService {
           reason: 'Ожидается один товар',
           resolved: false,
           studentId: student?.id,
+          organizationId: 1,
         },
       });
       return;
@@ -113,6 +116,7 @@ class PollerService {
           { productId: payment.products[0].value.product_id },
           { name: payment.products[0].value.description },
         ],
+        organizationId: 1,
       },
     });
     if (!productItem) {
@@ -122,6 +126,7 @@ class PollerService {
           reason: 'Не найдена информация про такой товар',
           resolved: false,
           studentId: student?.id,
+          organizationId: 1,
         },
       });
       return;
@@ -138,6 +143,7 @@ class PollerService {
         bidForLesson: price / lessonCount,
         leadName: payment.leadName,
         productName: payment.products[0].value.description,
+        organizationId: 1,
       },
     });
     const updated = await StudentRepository.update(student.id, {
@@ -157,6 +163,7 @@ class PollerService {
         balanceBefore,
         balanceAfter,
         meta: payment as unknown as Prisma.InputJsonValue,
+        organizationId: 1,
       },
     });
   }

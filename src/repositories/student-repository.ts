@@ -88,7 +88,7 @@ class StudentRepository {
 
   async update(id: number, data: Prisma.StudentUpdateInput): Promise<Student> {
     return prisma.student.update({
-      where: { id },
+      where: { id, organizationId: 1 },
       data,
     });
   }
