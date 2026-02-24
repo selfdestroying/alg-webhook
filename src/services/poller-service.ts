@@ -146,7 +146,7 @@ class PollerService {
         organizationId: 1,
       },
     });
-    const updated = await StudentRepository.update(student.id, {
+    const updated = await StudentRepository.updateStudentGroupFinance(student.id, {
       lessonsBalance: { increment: lessonCount },
       totalLessons: { increment: lessonCount },
       totalPayments: { increment: price },
@@ -164,6 +164,7 @@ class PollerService {
         balanceAfter,
         meta: payment as unknown as Prisma.InputJsonValue,
         organizationId: 1,
+        groupId: updated.groupId,
       },
     });
   }
