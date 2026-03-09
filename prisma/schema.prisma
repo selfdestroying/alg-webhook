@@ -79,39 +79,19 @@ model Course {
   @@index([organizationId])
 }
 
-model Dismissed {
-  id             Int          @id @default(autoincrement())
-  studentId      Int
-  groupId        Int
-  comment        String
-  date           DateTime
-  organizationId Int
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime
-  Group          Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  Organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  Student        Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
-
-  @@index([groupId])
-  @@index([organizationId])
-  @@index([studentId])
-}
-
 model Group {
   id                           Int                            @id @default(autoincrement())
   courseId                     Int
-  type                         GroupType?
-  startDate                    DateTime
-  time                         String
+  startDate                    DateTime                       @db.Date
   createdAt                    DateTime                       @default(now())
   url                          String?
   locationId                   Int
-  dayOfWeek                    Int
   maxStudents                  Int
   organizationId               Int
   updatedAt                    DateTime
-  Dismissed                    Dismissed[]
+  groupTypeId                  Int?
   Course                       Course                         @relation(fields: [courseId], references: [id])
+  GroupType                    GroupType?                     @relation(fields: [groupTypeId], references: [id])
   Location                     Location                       @relation(fields: [locationId], references: [id], onDelete: Cascade)
   Organization                 Organization                   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   GroupSchedule                GroupSchedule[]
@@ -124,12 +104,13 @@ model Group {
   @@index([courseId])
   @@index([locationId])
   @@index([organizationId])
+  @@index([groupTypeId])
 }
 
 model Lesson {
   id             Int             @id @default(autoincrement())
   groupId        Int
-  date           DateTime
+  date           DateTime        @db.Date
   time           String
   createdAt      DateTime        @default(now())
   status         LessonStatus    @default(ACTIVE)
@@ -190,7 +171,7 @@ model PayCheck {
   id             Int          @id @default(autoincrement())
   amount         Int
   comment        String
-  date           DateTime
+  date           DateTime     @db.Date
   createdAt      DateTime     @default(now())
   userId         Int
   organizationId Int
@@ -214,14 +195,17 @@ model Payment {
   organizationId Int
   updatedAt      DateTime     @updatedAt
   groupId        Int?
+  walletId       Int?
   Group          Group?       @relation(fields: [groupId], references: [id])
   Organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   Student        Student      @relation(fields: [studentId], references: [id])
+  Wallet         Wallet?      @relation(fields: [walletId], references: [id])
 
   @@index([createdAt])
   @@index([organizationId])
   @@index([studentId])
   @@index([groupId])
+  @@index([walletId])
 }
 
 model Product {
@@ -230,7 +214,7 @@ model Product {
   description    String?
   price          Int
   originalPrice  Int?
-  image          String       @default("placeholder.svg")
+  imageUrl       String
   categoryId     Int
   rating         Float        @default(0)
   reviews        Int          @default(0)
@@ -253,7 +237,7 @@ model Student {
   login                        String
   password                     String
   age                          Int
-  birthDate                    DateTime
+  birthDate                    DateTime                       @db.Date
   parentsName                  String?
   parentsPhone                 String?
   url                          String?
@@ -266,51 +250,59 @@ model Student {
   updatedAt                    DateTime                       @updatedAt
   Attendance                   Attendance[]
   Cart                         Cart?
-  Dismissed                    Dismissed[]
   Order                        Order[]
   Payment                      Payment[]
   Organization                 Organization                   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   StudentGroup                 StudentGroup[]
   StudentLessonsBalanceHistory StudentLessonsBalanceHistory[]
   UnprocessedPayment           UnprocessedPayment[]
+  Wallet                       Wallet[]
 
   @@index([organizationId])
 }
 
 model StudentGroup {
-  studentId      Int
-  groupId        Int
-  status         StudentStatus
-  organizationId Int
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime
-  lessonsBalance Int           @default(0)
-  totalLessons   Int           @default(0)
-  totalPayments  Int           @default(0)
-  Group          Group         @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  Organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  Student        Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentId       Int
+  groupId         Int
+  status          StudentStatus
+  organizationId  Int
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime
+  lessonsBalance  Int           @default(0)
+  totalLessons    Int           @default(0)
+  totalPayments   Int           @default(0)
+  dismissComment  String?
+  dismissedAt     DateTime?     @db.Date
+  transferComment String?
+  transferredAt   DateTime?     @db.Date
+  walletId        Int?
+  Group           Group         @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  Organization    Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  Student         Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  Wallet          Wallet?       @relation(fields: [walletId], references: [id])
 
   @@id([studentId, groupId])
   @@index([groupId])
   @@index([organizationId])
+  @@index([walletId])
 }
 
 model TeacherGroup {
-  teacherId       Int
-  groupId         Int
-  bid             Int
-  organizationId  Int
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime
-  bonusPerStudent Int          @default(0)
-  Group           Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  Organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  User            User         @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  teacherId      Int
+  groupId        Int
+  organizationId Int
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime
+  rateId         Int
+  Group          Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  Organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  Rate           Rate         @relation(fields: [rateId], references: [id])
+  User           User         @relation(fields: [teacherId], references: [id], onDelete: Cascade)
 
   @@id([teacherId, groupId])
   @@index([groupId])
   @@index([organizationId])
+  @@index([rateId])
 }
 
 model TeacherLesson {
@@ -349,8 +341,6 @@ model UnprocessedPayment {
 model User {
   id                           Int                            @id @default(autoincrement())
   createdAt                    DateTime                       @default(now())
-  bidForIndividual             Int
-  bidForLesson                 Int
   banExpires                   DateTime?
   banReason                    String?
   banned                       Boolean?                       @default(false)
@@ -360,7 +350,6 @@ model User {
   name                         String
   role                         String?
   updatedAt                    DateTime
-  bonusPerStudent              Int                            @default(0)
   Account                      Account[]
   Invitation                   Invitation[]
   Member                       Member[]
@@ -398,15 +387,18 @@ model StudentLessonsBalanceHistory {
   updatedAt      DateTime                          @updatedAt
   field          StudentFinancialField             @default(LESSONS_BALANCE)
   groupId        Int?
+  walletId       Int?
   User           User?                             @relation(fields: [actorUserId], references: [id])
   Group          Group?                            @relation(fields: [groupId], references: [id])
   Organization   Organization                      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   Student        Student                           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  Wallet         Wallet?                           @relation(fields: [walletId], references: [id])
 
   @@index([actorUserId, createdAt])
   @@index([studentId, createdAt])
   @@index([organizationId])
   @@index([groupId])
+  @@index([walletId])
 }
 
 model Account {
@@ -472,9 +464,9 @@ model Organization {
   CartItem                     CartItem[]
   Category                     Category[]
   Course                       Course[]
-  Dismissed                    Dismissed[]
   Group                        Group[]
   GroupSchedule                GroupSchedule[]
+  GroupType                    GroupType[]
   Invitation                   Invitation[]
   Lesson                       Lesson[]
   Location                     Location[]
@@ -485,12 +477,14 @@ model Organization {
   Payment                      Payment[]
   PaymentProduct               PaymentProduct[]
   Product                      Product[]
+  Rate                         Rate[]
   Student                      Student[]
   StudentGroup                 StudentGroup[]
   StudentLessonsBalanceHistory StudentLessonsBalanceHistory[]
   TeacherGroup                 TeacherGroup[]
   TeacherLesson                TeacherLesson[]
   UnprocessedPayment           UnprocessedPayment[]
+  Wallet                       Wallet[]
 }
 
 model Session {
@@ -536,17 +530,60 @@ model GroupSchedule {
   @@index([organizationId])
 }
 
+model GroupType {
+  id             Int          @id @default(autoincrement())
+  name           String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime
+  organizationId Int
+  rateId         Int
+  Group          Group[]
+  Organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  Rate           Rate         @relation(fields: [rateId], references: [id])
+
+  @@index([organizationId])
+  @@index([rateId])
+}
+
+model Rate {
+  id              Int            @id @default(autoincrement())
+  name            String
+  bid             Int
+  bonusPerStudent Int            @default(0)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime
+  organizationId  Int
+  GroupType       GroupType[]
+  Organization    Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  TeacherGroup    TeacherGroup[]
+
+  @@index([organizationId])
+}
+
+model Wallet {
+  id                           Int                            @id @default(autoincrement())
+  name                         String?
+  lessonsBalance               Int                            @default(0)
+  totalLessons                 Int                            @default(0)
+  totalPayments                Int                            @default(0)
+  createdAt                    DateTime                       @default(now())
+  updatedAt                    DateTime
+  organizationId               Int
+  studentId                    Int
+  Payment                      Payment[]
+  StudentGroup                 StudentGroup[]
+  StudentLessonsBalanceHistory StudentLessonsBalanceHistory[]
+  Organization                 Organization                   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  Student                      Student                        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([studentId])
+}
+
 enum AttendanceStatus {
   UNSPECIFIED
   PRESENT
   ABSENT
-}
-
-enum GroupType {
-  GROUP
-  INDIVIDUAL
-  INTENSIVE
-  SPLIT
 }
 
 enum LessonStatus {
@@ -564,6 +601,7 @@ enum StudentStatus {
   TRIAL
   ACTIVE
   DISMISSED
+  TRANSFERRED
 }
 
 enum StudentLessonsBalanceChangeReason {
@@ -578,6 +616,8 @@ enum StudentLessonsBalanceChangeReason {
   TOTAL_PAYMENTS_MANUAL_SET
   TOTAL_LESSONS_MANUAL_SET
   BALANCE_REDISTRIBUTED
+  WALLET_MERGED
+  WALLET_TRANSFER
 }
 
 enum StudentFinancialField {
