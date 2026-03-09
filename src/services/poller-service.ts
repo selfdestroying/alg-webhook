@@ -5,7 +5,6 @@ import { Prisma, StudentLessonsBalanceChangeReason } from '../generated/prisma/b
 import PollerStateStorage from '../lib/poller-state';
 import { prisma } from '../lib/prisma';
 import { normalizeNameParts } from '../lib/utils';
-import PaymentRepository from '../repositories/payment-repository';
 import StudentRepository from '../repositories/student-repository';
 import unprocessedPaymentRepository from '../repositories/unprocessed-payment-repository';
 import { Payment } from '../types/payment';
@@ -135,37 +134,90 @@ class PollerService {
     const price = productItem.price;
     const lessonCount = productItem.lessonCount;
 
-    await PaymentRepository.create({
-      data: {
-        studentId: student.id,
-        lessonCount,
-        price,
-        bidForLesson: price / lessonCount,
-        leadName: payment.leadName,
-        productName: payment.products[0].value.description,
-        organizationId: 1,
-      },
-    });
-    const updated = await StudentRepository.updateStudentGroupFinance(student.id, {
-      lessonsBalance: { increment: lessonCount },
-      totalLessons: { increment: lessonCount },
-      totalPayments: { increment: price },
-    });
-    const balanceBefore = student.lessonsBalance;
-    const balanceAfter = updated.lessonsBalance;
-    const delta = balanceAfter - balanceBefore;
+    const studentWithGroups = await StudentRepository.findStudentWithWallet(student.id);
+    const groups = studentWithGroups?.StudentGroup ?? [];
 
-    await prisma.studentLessonsBalanceHistory.create({
-      data: {
-        studentId: student.id,
-        reason: StudentLessonsBalanceChangeReason.PAYMENT_CREATED,
-        delta,
-        balanceBefore,
-        balanceAfter,
-        meta: payment as unknown as Prisma.InputJsonValue,
-        organizationId: 1,
-        groupId: updated.groupId,
-      },
+    if (groups.length === 0) {
+      await unprocessedPaymentRepository.create({
+        data: {
+          rawData: payment as unknown as Prisma.InputJsonValue,
+          reason: 'Студент не состоит ни в одной группе',
+          resolved: false,
+          studentId: student.id,
+          organizationId: 1,
+        },
+      });
+      return;
+    }
+
+    if (groups.length > 1) {
+      await unprocessedPaymentRepository.create({
+        data: {
+          rawData: payment as unknown as Prisma.InputJsonValue,
+          reason: 'Студент состоит в нескольких группах, невозможно определить кошелёк',
+          resolved: false,
+          studentId: student.id,
+          organizationId: 1,
+        },
+      });
+      return;
+    }
+
+    const studentGroup = groups[0];
+    const wallet = studentGroup.Wallet;
+
+    if (!wallet) {
+      await unprocessedPaymentRepository.create({
+        data: {
+          rawData: payment as unknown as Prisma.InputJsonValue,
+          reason: 'У группы студента нет привязанного кошелька',
+          resolved: false,
+          studentId: student.id,
+          organizationId: 1,
+        },
+      });
+      return;
+    }
+
+    const balanceBefore = wallet.lessonsBalance;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.payment.create({
+        data: {
+          studentId: student.id,
+          lessonCount,
+          price,
+          bidForLesson: price / lessonCount,
+          leadName: payment.leadName,
+          productName: payment.products[0].value.description,
+          organizationId: 1,
+          groupId: studentGroup.groupId,
+          walletId: wallet.id,
+        },
+      });
+
+      const updatedWallet = await tx.wallet.update({
+        where: { id: wallet.id },
+        data: {
+          lessonsBalance: { increment: lessonCount },
+          totalLessons: { increment: lessonCount },
+          totalPayments: { increment: price },
+        },
+      });
+
+      await tx.studentLessonsBalanceHistory.create({
+        data: {
+          studentId: student.id,
+          reason: StudentLessonsBalanceChangeReason.PAYMENT_CREATED,
+          delta: lessonCount,
+          balanceBefore,
+          balanceAfter: updatedWallet.lessonsBalance,
+          meta: payment as unknown as Prisma.InputJsonValue,
+          organizationId: 1,
+          groupId: studentGroup.groupId,
+          walletId: wallet.id,
+        },
+      });
     });
   }
 }

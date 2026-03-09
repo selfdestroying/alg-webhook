@@ -97,23 +97,15 @@ class StudentRepository {
     return prisma.student.delete({ where: { id } });
   }
 
-  async updateStudentGroupFinance(id: number, data: Prisma.StudentGroupUpdateInput) {
-    const student = await prisma.student.findUnique({
+  async findStudentWithWallet(id: number) {
+    return prisma.student.findUnique({
       where: { id, organizationId: 1 },
-      include: { StudentGroup: true },
+      include: {
+        StudentGroup: {
+          include: { Wallet: true },
+        },
+      },
     });
-    if (student?.StudentGroup?.length === 1) {
-      const updated = await prisma.studentGroup.update({
-        where: { studentId_groupId: { studentId: id, groupId: student.StudentGroup[0].groupId } },
-        data,
-      });
-      return { lessonsBalance: updated.lessonsBalance, groupId: updated.groupId };
-    }
-    const updated = await prisma.student.update({
-      where: { id, organizationId: 1 },
-      data,
-    });
-    return { lessonsBalance: updated.lessonsBalance, groupId: null };
   }
 }
 
