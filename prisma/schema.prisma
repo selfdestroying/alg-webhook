@@ -8,21 +8,22 @@ datasource db {
 }
 
 model Attendance {
-  id                                           Int              @id @default(autoincrement())
-  lessonId                                     Int
-  studentId                                    Int
-  status                                       AttendanceStatus @default(UNSPECIFIED)
-  comment                                      String           @default("")
-  studentStatus                                StudentStatus    @default(ACTIVE)
-  isWarned                                     Boolean?
-  organizationId                               Int
-  createdAt                                    DateTime         @default(now())
-  updatedAt                                    DateTime
-  Lesson                                       Lesson           @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-  Organization                                 Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  Student                                      Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  MakeUp_MakeUp_makeUpAttendaceIdToAttendance  MakeUp?          @relation("MakeUp_makeUpAttendaceIdToAttendance")
-  MakeUp_MakeUp_missedAttendanceIdToAttendance MakeUp?          @relation("MakeUp_missedAttendanceIdToAttendance")
+  id                    Int              @id @default(autoincrement())
+  lessonId              Int
+  studentId             Int
+  status                AttendanceStatus @default(UNSPECIFIED)
+  comment               String           @default("")
+  studentStatus         StudentStatus    @default(ACTIVE)
+  isWarned              Boolean?
+  organizationId        Int
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime
+  makeupForAttendanceId Int?             @unique
+  Lesson                Lesson           @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  Attendance            Attendance?      @relation("AttendanceToAttendance", fields: [makeupForAttendanceId], references: [id])
+  other_Attendance      Attendance?      @relation("AttendanceToAttendance")
+  Organization          Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  Student               Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([studentId, lessonId])
   @@index([lessonId])
@@ -90,6 +91,9 @@ model Group {
   organizationId               Int
   updatedAt                    DateTime
   groupTypeId                  Int?
+  archiveComment               String?
+  archivedAt                   DateTime?                      @db.Date
+  isArchived                   Boolean                        @default(false)
   Course                       Course                         @relation(fields: [courseId], references: [id])
   GroupType                    GroupType?                     @relation(fields: [groupTypeId], references: [id])
   Location                     Location                       @relation(fields: [locationId], references: [id], onDelete: Cascade)
@@ -105,6 +109,7 @@ model Group {
   @@index([locationId])
   @@index([organizationId])
   @@index([groupTypeId])
+  @@index([isArchived])
 }
 
 model Lesson {
@@ -134,18 +139,6 @@ model Location {
   updatedAt      DateTime
   Group          Group[]
   Organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  @@index([organizationId])
-}
-
-model MakeUp {
-  id                                               Int          @id @default(autoincrement())
-  missedAttendanceId                               Int          @unique
-  makeUpAttendaceId                                Int          @unique
-  organizationId                                   Int          @default(1)
-  Attendance_MakeUp_makeUpAttendaceIdToAttendance  Attendance   @relation("MakeUp_makeUpAttendaceIdToAttendance", fields: [makeUpAttendaceId], references: [id], onDelete: Cascade)
-  Attendance_MakeUp_missedAttendanceIdToAttendance Attendance   @relation("MakeUp_missedAttendanceIdToAttendance", fields: [missedAttendanceId], references: [id], onDelete: Cascade)
-  Organization                                     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
 }
@@ -234,15 +227,10 @@ model Student {
   id                           Int                            @id @default(autoincrement())
   firstName                    String
   lastName                     String
-  login                        String
-  password                     String
-  age                          Int
-  birthDate                    DateTime                       @db.Date
-  parentsName                  String?
-  parentsPhone                 String?
+  age                          Int?
+  birthDate                    DateTime?                      @db.Date
   url                          String?
   createdAt                    DateTime                       @default(now())
-  coins                        Int                            @default(0)
   lessonsBalance               Int                            @default(0)
   totalLessons                 Int                            @default(0)
   totalPayments                Int                            @default(0)
@@ -253,8 +241,10 @@ model Student {
   Order                        Order[]
   Payment                      Payment[]
   Organization                 Organization                   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  StudentAccount               StudentAccount?
   StudentGroup                 StudentGroup[]
   StudentLessonsBalanceHistory StudentLessonsBalanceHistory[]
+  StudentParent                StudentParent[]
   UnprocessedPayment           UnprocessedPayment[]
   Wallet                       Wallet[]
 
@@ -268,9 +258,6 @@ model StudentGroup {
   organizationId  Int
   createdAt       DateTime      @default(now())
   updatedAt       DateTime
-  lessonsBalance  Int           @default(0)
-  totalLessons    Int           @default(0)
-  totalPayments   Int           @default(0)
   dismissComment  String?
   dismissedAt     DateTime?     @db.Date
   transferComment String?
@@ -470,9 +457,10 @@ model Organization {
   Invitation                   Invitation[]
   Lesson                       Lesson[]
   Location                     Location[]
-  MakeUp                       MakeUp[]
   Member                       Member[]
   Order                        Order[]
+  OrganizationFeature          OrganizationFeature[]
+  Parent                       Parent[]
   PayCheck                     PayCheck[]
   Payment                      Payment[]
   PaymentProduct               PaymentProduct[]
@@ -578,6 +566,52 @@ model Wallet {
 
   @@index([organizationId])
   @@index([studentId])
+}
+
+model OrganizationFeature {
+  id             Int          @id @default(autoincrement())
+  organizationId Int
+  featureKey     String
+  enabled        Boolean      @default(true)
+  Organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, featureKey])
+  @@index([organizationId])
+}
+
+model Parent {
+  id             Int             @id @default(autoincrement())
+  firstName      String
+  lastName       String?
+  phone          String?
+  email          String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime
+  organizationId Int
+  Organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  StudentParent  StudentParent[]
+
+  @@index([organizationId])
+}
+
+model StudentAccount {
+  id        Int     @id @default(autoincrement())
+  login     String
+  password  String
+  coins     Int     @default(0)
+  studentId Int     @unique
+  Student   Student @relation(fields: [studentId], references: [id])
+}
+
+model StudentParent {
+  createdAt DateTime @default(now())
+  studentId Int
+  parentId  Int
+  Parent    Parent   @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  Student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@id([studentId, parentId])
+  @@index([parentId])
 }
 
 enum AttendanceStatus {
