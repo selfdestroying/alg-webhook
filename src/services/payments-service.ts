@@ -33,6 +33,7 @@ class PaymentsService {
           metadata: {
             message: 'Что то пошло не так при получении сделки',
             event,
+            invoice,
           },
         });
         continue;
