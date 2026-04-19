@@ -5,4 +5,5 @@ export interface Payment {
   invoiceName: string;
   createdAt: number | string;
   products: InvoiceItemsFieldValue[];
+  metadata?: object;
 }

@@ -24,6 +24,19 @@ class PaymentsService {
       const invoice = await InvoicesService.getInvoice(event._embedded.entity.id);
       const products = (invoice.custom_fields_values.find((field) => field.field_id === 891565)
         ?.values || []) as InvoiceItemsFieldValue[];
+      if (lead === null) {
+        payments.push({
+          leadName: '',
+          invoiceName: '',
+          products,
+          createdAt: event.created_at,
+          metadata: {
+            message: 'Что то пошло не так при получении сделки',
+            event,
+          },
+        });
+        continue;
+      }
       const payment: Payment = {
         leadName: lead.name,
         invoiceName: invoice.name,

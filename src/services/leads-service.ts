@@ -1,4 +1,3 @@
-import ApiError from '../error/api-error';
 import { logInvocation } from '../lib/utils';
 import ApiRepository from '../repositories/api-repository';
 
@@ -13,7 +12,9 @@ class LeadsService {
     const lead = await ApiRepository.fetchLead(id);
 
     if (!lead) {
-      throw new ApiError(404, `Сделка с ID ${id} не найдена`);
+      // throw new ApiError(404, `Сделка с ID ${id} не найдена`);
+      console.log(`[${new Date().toLocaleDateString('ru-RU')}] Сделка с ID ${id} не найдена`);
+      return null;
     }
 
     return lead;
